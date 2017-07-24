@@ -1,2 +1,2 @@
 # cronous
-scripts for Cronous game
+Scripts for Cronous Game
