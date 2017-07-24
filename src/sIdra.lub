@@ -1,0 +1,581 @@
+-- Decompiled using luadec 2.0 UNICODE by sztupy (http://winmo.sztupy.hu)
+-- Command line was: C:\Users\thomas\Desktop\lubdec\script\sIdra.lub 
+
+BossMessage = {}
+BossMessage.Regen = "吵醒我的人类们,以你们的生命来偿还吧."
+BossMessage.Event1 = "呵呵,实力还不错嘛!出来吧,我的黑暗之子们!!"
+BossMessage.Event2 = "你以为这种程度就可以战胜我吗!"
+BossMessage.Event3 = "你会后悔出现在我的面前! "
+BossMessage.Action = "哈哈,没有感觉到死亡的气息吗!"
+BossMessage.TimeOver = "蛮有趣啊,不过你的实力还是太嫩了,再去练几年吧,哈哈哈"
+Bosshandle = 0
+GameLoop = 100
+StartUpLoop = 200
+TimeOverLoop = 300
+GameEndLoop = 400
+EarthQuakeLoop = 600
+BossDieLoop = 500
+TimeOutLoop = 700
+BossSayLoop = 800
+BossEventLoop = 1000
+BossActionLoop = 1100
+CreateMonster2Loop = 1200
+zonenum = 22
+EarthQuakeCount = 0
+PlayStep = 0
+Step1 = 0
+Step2 = 1
+Step3 = 2
+EndTime = 0
+SendTime = 0
+bReady = 1
+btime = 0
+readytime = 720000
+itemcode = {}
+itemcode[1] = 2398
+itemcode[2] = 2538
+itemcode[3] = 2629
+itemcode[4] = 2645
+itemcode[5] = 2661
+itemcode[6] = 2677
+itemcode[7] = 2700
+itemcode[8] = 2914
+itemcode[9] = 5172
+itemcode[10] = 2398
+itemcode[11] = 2645
+itemcode[12] = 3523
+itemcode[13] = 5172
+itemcode[14] = 2629
+itemcode[15] = 2914
+itemamount = {}
+itemamount[1] = 1
+itemamount[2] = 1
+itemamount[3] = 1
+itemamount[4] = 1
+itemamount[5] = 1
+itemamount[6] = 1
+itemamount[7] = 1
+itemamount[8] = 1
+itemamount[9] = 1
+itemamount[10] = 1
+itemamount[11] = 1
+itemamount[12] = 1
+itemamount[13] = 1
+itemamount[14] = 1
+itemamount[15] = 1
+BossPoint = {}
+BossPoint.x = 0
+BossPoint.y = 0
+BossPoint.z = 0
+g_BossAttacker = 0
+function CreateMonster1()
+  DebugMessage("CreateMonster1")
+  CreateNPC(1504, 22, 230, 1188)
+  CreateNPC(1504, 22, 256, 1190)
+  CreateNPC(1504, 22, 315, 1185)
+  CreateNPC(1504, 22, 335, 1185)
+  CreateNPC(1504, 22, 225, 1045)
+  CreateNPC(1504, 22, 245, 1045)
+  CreateNPC(1504, 22, 303, 1040)
+  CreateNPC(1504, 22, 338, 1042)
+  CreateNPC(1504, 22, 220, 990)
+  CreateNPC(1504, 22, 240, 990)
+  CreateNPC(1504, 22, 307, 1147)
+  CreateNPC(1504, 22, 230, 1121)
+  CreateNPC(1504, 22, 303, 1101)
+  CreateNPC(1504, 22, 335, 1001)
+end
+function CreateMonster2()
+  DebugMessage("CreateMonster2")
+  CreateNPC(1504, 22, 230, 1188)
+  CreateNPC(1504, 22, 256, 1190)
+  CreateNPC(1504, 22, 315, 1185)
+  CreateNPC(1504, 22, 335, 1185)
+  CreateNPC(1504, 22, 225, 1045)
+  CreateNPC(1504, 22, 245, 1045)
+  CreateNPC(1504, 22, 303, 1040)
+  CreateNPC(1504, 22, 338, 1042)
+  CreateNPC(1504, 22, 220, 990)
+  CreateNPC(1504, 22, 240, 990)
+  CreateNPC(1528, 22, 245, 1227)
+  CreateNPC(1528, 22, 265, 1227)
+  CreateNPC(1528, 22, 232, 932)
+  CreateNPC(1528, 22, 252, 932)
+  CreateNPC(1528, 22, 280, 960)
+  CreateNPC(1528, 22, 300, 960)
+end
+function CreateBoss()
+  DebugMessage("CreateBoss")
+  Bosshandle = CreateNPC(1602, 22, 335, 1081)
+end
+function SetStep(step)
+  DebugMessage("SetStep")
+  PlayStep = step
+  if step == Step2 then
+    DebugMessage("2Step")
+    local user = 0
+    while true do
+      user = GetNextZoneUser(user, zonenum)
+      if user == 0 then
+        break
+      end
+      SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_COUNTON, "", 0)
+    end
+    SetZoneMode(zonenum, ZF_NOREGEN)
+    SetTimeOut()
+    SetStart()
+  elseif step == Step3 then
+    DebugMessage("3Step")
+    EarthQuake()
+    CreateBoss()
+    SetTimeOut()
+    SetBossEvent()
+    SetTimer(BossSayLoop, 200)
+    SetStart()
+  end
+end
+function SetStartUp()
+  DebugMessage("SetStartUp")
+  SetTimer(StartUpLoop, 500)
+end
+function SetStart()
+  DebugMessage("SetStart")
+  SetTimer(GameLoop, 50)
+end
+function StartUp()
+  DebugMessage("StartUP Function")
+  KillTimer(StartUpLoop)
+  bReady = 0
+  local user = 0
+  Init()
+  SetZoneMode(zonenum, ZF_REGEN)
+  while true do
+    user = GetNextZoneUser(user, zonenum)
+    if user == 0 then
+      break
+    end
+    SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_COUNTON, "", 0)
+    SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_TIMEOFF, "", 0)
+  end
+  SetStep(Step1)
+  SetStart()
+end
+function Init()
+  DebugMessage("Init")
+  Bosshandle = 0
+  TimeOverLoop = 300
+  GameEndLoop = 400
+  BossDieLoop = 500
+  EarthQuakeLoop = 600
+  EarthQuakeCount = 0
+  PlayStep = 0
+  SendTime = 0
+  btime = 0
+end
+function OnLoad()
+  return 1
+end
+bonce = 0
+function OnDestroy()
+  if bonce == 0 then
+    bonce = 1
+    DebugMessage("OnDestroy Function")
+    local user = 0
+    while true do
+      user = GetNextZoneUser(user, zonenum)
+      if user == 0 then
+        break
+      end
+      SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_COUNTOFF, "", 0)
+      SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_TIMEOFF, "", 0)
+    end
+    ZoneKillNpc(zonenum)
+    SetZoneMode(zonenum, ZF_REGEN)
+    SetZoneRegen(zonenum)
+  end
+end
+function OnStart()
+  SetStartUp()
+end
+function BossSay()
+  DebugMessage("BossSay")
+  KillTimer(BossSayLoop)
+  SayNPC(Bosshandle, BossMessage.Regen)
+end
+function SetBossEvent()
+  DebugMessage("SetBossEvent")
+  SetTimer(BossEventLoop, 4900)
+end
+function FreeBossEvent()
+  DebugMessage("FreeBossEvent")
+  KillTimer(BossEventLoop)
+end
+function BossEvent()
+  DebugMessage("BossEvent")
+  local rand = Random(1, 4)
+  local hp = GetPercentHPNPC(Bosshandle)
+  if hp < 500 then
+    if rand == 1 then
+      SayNPC(Bosshandle, BossMessage.Event1)
+    elseif rand == 2 then
+      SayNPC(Bosshandle, BossMessage.Event2)
+    else
+      SayNPC(Bosshandle, BossMessage.Event3)
+    end
+    SetBossAction()
+    FreeBossEvent()
+  end
+end
+function SetBossAction()
+  DebugMessage("SetBossAction")
+  SetTimer(BossActionLoop, 500)
+end
+function BossAction()
+  DebugMessage("BossAction")
+  KillTimer(BossActionLoop)
+  CreateMonster2()
+  SayNPC(Bosshandle, BossMessage.Action)
+end
+function SetTimeOut()
+  DebugMessage("SetTimeOut")
+  if PlayStep == Step2 then
+    EndTime = 180000
+  else
+    EndTime = 600000
+  end
+  SendTime = 0
+  local user = 0
+  while true do
+    user = GetNextZoneUser(user, zonenum)
+    if user == 0 then
+      break
+    end
+    DebugMessage("Timer Setting {1}", EndTime)
+    SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_TIMEON, "", 0)
+    SendEventUser(user, NOTICE_TIME, EndTime, "", 0)
+  end
+  SetTimer(TimeOutLoop, 100)
+end
+function FreeTimeOut()
+  DebugMessage("FreeTimeOut")
+  DebugMessage("Timer Remove {1}", EndTime)
+  KillTimer(TimeOutLoop)
+  local user = 0
+  while true do
+    user = GetNextZoneUser(user, zonenum)
+    if user == 0 then
+      break
+    end
+    SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_TIMEOFF, "", 0)
+  end
+end
+function TimeOutMode()
+  DebugMessage("TimeOutMode")
+  EndTime = EndTime - 1000
+  SendTime = SendTime + 1
+  if SendTime > 10 then
+    local user = 0
+    while true do
+      user = GetNextZoneUser(user, zonenum)
+      if user == 0 then
+        break
+      end
+      DebugMessage("Timer Sync")
+      SendEventUser(user, NOTICE_TIME, EndTime, "", 0)
+    end
+    SendTime = 0
+  end
+  if EndTime < 0 then
+    bReady = 1
+    FreeTimeOut()
+    TimeOver()
+    FreeBossEvent()
+    KillTimer(GameLoop)
+  end
+end
+
+function TimeOver()
+  DebugMessage("TimeOver")
+  local user = 0
+  if TimeOverLoop == 300 then
+    if PlayStep == Step3 then
+      SayNPC(Bosshandle, BossMessage.TimeOver)
+    else
+      user = 0
+      while true do
+        user = GetNextZoneUser(user, zonenum)
+        if user == 0 then
+          break
+        end
+        SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_COUNTOFF, "", 0)
+      end
+    end
+    user = 0
+    while true do
+      user = GetNextZoneUser(user, zonenum)
+      if user == 0 then
+        break
+      end
+      SendEventUser(user, NOTICE_MESSAGE, 291, "", zonenum)
+    end
+    ZoneNpcActive(zonenum, 0)
+    TimeOverLoop = 301
+    SetTimer(TimeOverLoop, 500)
+  elseif TimeOverLoop == 301 then
+    KillTimer(TimeOverLoop)
+    user = 0
+    while true do
+      user = GetNextZoneUser(user, zonenum)
+      if user == 0 then
+        break
+      end
+      SendEventUser(user, NOTICE_CONTROL, 106, "", zonenum)
+    end
+    TimeOverLoop = 302
+    SetTimer(TimeOverLoop, 500)
+  elseif TimeOverLoop == 302 then
+    KillTimer(TimeOverLoop)
+    user = 0
+    while true do
+      user = GetNextZoneUser(user, zonenum)
+      if user == 0 then
+        break
+      end
+      SendEventUser(user, NOTICE_CONTROL, 107, "", zonenum)
+    end
+    TimeOverLoop = 303
+    SetTimer(TimeOverLoop, 500)
+  elseif TimeOverLoop == 303 then
+    KillTimer(TimeOverLoop)
+    user = 0
+    while true do
+      user = GetNextZoneUser(user, zonenum)
+      if user == 0 then
+        break
+      end
+      MoveZoneUser(user, 17, 2175, 1768, 11)
+    end
+    OutOfNpcInZone(zonenum, 0)
+    TimeOverLoop = 300
+    GameEnd()
+  end
+end
+function GameEnd()
+  DebugMessage("GameEnd")
+  if GameEndLoop == 400 then
+    GameEndLoop = 401
+    DebugMessage("1min later Revival")
+    SetTimer(GameEndLoop, 6000)
+  elseif GameEndLoop == 401 then
+    KillTimer(GameEndLoop)
+    SetZoneMode(zonenum, ZF_REGEN)
+    SetZoneRegen(zonenum)
+    local user = 0
+    while true do
+      user = GetNextZoneUser(user, zonenum)
+      if user == 0 then
+        break
+      end
+      SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_COUNTOFF, "", 0)
+      SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_TIMEOFF, "", 0)
+    end
+    GameEndLoop = 402
+    SetTimer(GameEndLoop, readytime)
+    DebugMessage("Wait Time {1}", readytime)
+  elseif GameEndLoop == 402 then
+    KillTimer(GameEndLoop)
+    GameEndLoop = 400
+    SetStartUp()
+  end
+end
+function EarthQuake()
+  DebugMessage("EarthQuake")
+  local user = 0
+  if EarthQuakeCount == 0 then
+    SetTimer(EarthQuakeLoop, 50)
+  end
+  EarthQuakeCount = EarthQuakeCount + 1
+  while true do
+    user = GetNextZoneUser(user, zonenum)
+    if user == 0 then
+      break
+    end
+    if EarthQuakeCount == 0 then
+      SendEventUser(user, NOTICE_CONTROL, NOTICE_ZONE_SLOWDARK, "", zonenum)
+    end
+    SendEventUser(user, NOTICE_CONTROL, NOTICE_ZONE_EARTHQUAKE, "", zonenum)
+  end
+  if EarthQuakeCount > 10 then
+    KillTimer(EarthQuakeLoop)
+    EarthQuakeCount = 0
+  end
+end
+function OnDeadNPC(NPCHandle, Attacker)
+  if Bosshandle == NPCHandle then
+    g_BossAttacker = Attacker
+  end
+end
+
+function BossDie()
+  KillTimer(BossDieLoop)
+  DebugMessage("BossDie {1} ", BossDieLoop)
+  for i = 500, 515 do
+    if BossDieLoop == i then
+      if i == 500 then
+        ZoneKillNpc(zonenum)
+        local user = 0
+        while true do
+          user = GetNextZoneUser(user, zonenum)
+          if user == 0 then
+            break
+          end
+          SendEventUser(user, 10008, 287, "", zonenum)
+        end
+      end
+      if i == 515 then
+        if GetCodeNPC(Bosshandle) == 1602 then
+          DestroyNPC(Bosshandle)
+        end
+        GameEnd()
+      else
+        local index = i + 1 - 500
+        CreateItem(itemcode[index], itemamount[index], zonenum, BossPoint.x, BossPoint.y, BossPoint.z, 15, g_BossAttacker)
+      end
+    end
+  end
+  if BossDieLoop ~= 515 then
+    BossDieLoop = BossDieLoop + 1
+    SetTimer(BossDieLoop, 30)
+  end
+end
+
+function OnTimer(TimerID)
+  DebugMessage("OnTimer")
+  if btime == 1 then
+    DebugMessage("Using Timer {1}", TimerID)
+  end
+  if TimerID == GameLoop then
+    if PlayStep == Step1 or PlayStep == Step2 then
+		local npccount = GetNPCZoneCount(zonenum)
+		local user = 0
+		if npccount < 1 then
+		  KillTimer(GameLoop)
+		  user = 0
+		  while true do
+			  user = GetNextZoneUser(user, zonenum)
+			  if user == 0 then
+				break
+			  end
+			  SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_COUNTOFF, "", 0)
+			  if PlayStep == Step2 then
+				SendEventUser(user, NOTICE_MESSAGE, 290, "", zonenum)
+			  end
+		  end
+		  
+		  if PlayStep == Step2 then
+			FreeTimeOut()
+		  end
+		  SetTimer(PlayStep, 500)
+		end
+		
+		user = 0
+		while true do
+		user = GetNextZoneUser(user, zonenum)
+		if user == 0 then
+		  break
+		end
+		SendEventUser(user, NOTICE_COUNT, npccount, "", 0)
+		end
+    end
+    if PlayStep == Step3 and IsDeadNPC(Bosshandle) == 1 then
+		KillTimer(GameLoop)
+		FreeTimeOut()
+		bReady = 1
+		local user = 0
+		while true do 
+			user = GetNextZoneUser(user, zonenum)
+			if user == 0 then
+				break
+			end
+			SendEventUser(user, NOTICE_CONTROL, NOTICE_ZONE_SLOWBRIGHT, "", zonenum)
+		end
+		BossPoint.x, BossPoint.y, BossPoint.z = GetPointNPC(Bosshandle)
+		SetTimer(BossDieLoop, 200)
+    end
+  end
+  if TimerID == StartUpLoop then
+    StartUp()
+   return
+  end
+  if TimerID == EarthQuakeLoop then
+    EarthQuake()
+    return
+  end
+  if TimerID == TimeOutLoop then
+    TimeOutMode()
+    return
+  end
+  if TimerID == BossDieLoop then
+    BossDie()
+    return
+  end
+  if TimerID == PlayStep then
+    KillTimer(TimerID)
+    if PlayStep == Step1 then
+      SetTimer(CreateMonster2Loop, 200)
+      CreateMonster1()
+      local user = 0
+      while 1 do
+        user = GetNextZoneUser(user, zonenum)
+        if user == 0 then
+          break
+        end
+        SendEventUser(user, NOTICE_MESSAGE, 296, "", zonenum)
+      end
+    else
+      SetStep(PlayStep + 1)
+    end
+  elseif TimerID == CreateMonster2Loop then
+    KillTimer(TimerID)
+    SetStep(PlayStep + 1)
+  elseif TimerID == GameEndLoop then
+    GameEnd()
+  elseif TimerID == TimeOverLoop then
+    TimeOver()
+  elseif TimerID == BossSayLoop then
+    BossSay()
+  elseif TimerID == BossEventLoop then
+    BossEvent()
+  elseif TimerID == BossActionLoop then
+    BossAction()
+  end
+end
+
+function OnPCIn(userhandle)
+  DebugMessage("OnPCIn")
+  if bReady == 0 and GetZoneUser(userhandle) == zonenum then
+    if PlayStep == Step1 or PlayStep == Step2 then
+      SendEventUser(userhandle, NOTICE_EVENT, NOTICE_EVENT_COUNTON, "", 0)
+    end
+    if PlayStep == Step3 or PlayStep == Step2 then
+      SendEventUser(userhandle, NOTICE_EVENT, NOTICE_EVENT_TIMEON, "", 0)
+      SendEventUser(userhandle, NOTICE_TIME, EndTime, "", 0)
+    end
+  end
+end
+
+function OnCommand(arg)
+  if arg == "fast" then
+    readytime = 300
+  elseif arg == "time" then
+    EndTime = 10000
+  elseif arg == "timer" then
+    if btime == 0 then
+      btime = 1
+    else
+      btime = 0
+    end
+  end
+end
+
+

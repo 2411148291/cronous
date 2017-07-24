@@ -1,0 +1,905 @@
+-- Decompiled using luadec 2.0 UNICODE by sztupy (http://winmo.sztupy.hu)
+-- Command line was: sysSiegest.lub 
+include("script/mylib.lua")
+include("script/apiPack.lua")
+include("script/linger.lua")
+
+DeadMsg = {"公会石已被击破", "城门已被攻破", "攻城方传送石已被摧毁", "守城方传送石已被摧毁", "守城方传送石已被摧毁"}
+g_SiegeLogoffMent = {"攻城战开启同时西提斯城所在中立玩家会强制传送到其他地图.", "中立玩家请在结束后重新登录或者在终止前移动到其他地图. "}
+g_SiegeNothingMent = "今日没有攻城战."
+g_SiegeAttackWinMent = "由于守城方联盟不存在,攻城方联盟获得胜利."
+g_SiegeSoonMent = "西提斯怪物攻城战即将展开."
+g_SiegeRedyMent = {"10秒后将开始西提斯怪物攻城战.", "20秒后将开始西提斯怪物攻城战.", "30秒后将开始西提斯怪物攻城战."}
+g_SiegeStartMent = "西提斯怪物攻城战已经开始."
+g_SiegeIngMent = "西提斯怪物攻城战正在进行中."
+g_SiegeEndMent = "怪物攻城战已经结束,请终止PVP."
+g_SiegeThankMent = "感谢参加攻城战的玩家,祝你周末游戏愉快~"
+StartMsgNum = 0
+TimeCount = 0
+Victory = 0
+bEvent = 0
+bAllDeadDWarp = 0
+AttackUnion = 0
+DefenseUnion = 0
+MAX_TIMER = 14
+MAX_NPC = 10
+EndTime = 3600000
+bOnceTimeShow = 0
+SendCount = 0
+bOnceDestroy = 0
+bgo = 0
+NPCINFO = {}
+NPCINFO.bDead = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+NPCINFO.handle = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+NPCINFO.ImgAttack = {1000, 0, 1002, 1004, 1004}
+NPCINFO.ImgAttackex = {1, 0, 1, 1, 2}
+NPCINFO.ImgDead = {1001, 0, 1003, 1005, 1005}
+NPCINFO.ImgDeadex = {1, 0, 1, 1, 2}
+NPCINFO.ID = {10010, 10007, 10013, 10013, 10013, 1720, 201, 202, 203, 1720}
+g_SiegestZone = 10
+
+function OnLoad()
+	return 1
+end
+
+function OnStart()
+	SetTimer(100, 1000)
+	linger.start()
+end
+
+function OnCommand(arg)
+	if arg == "fast" then
+		StartMsgNum = 3
+	elseif arg == "time" then
+		EndTime = 300000
+	elseif arg == "go" then
+		bgo = 1
+	end
+end
+
+
+function WinAttacker()
+	Victory = 0
+	EndWar()
+	SetTimer(9, 1000)
+end
+
+function WinDefender()
+	Victory = 1
+	EndWar()
+end
+
+function EndWar()
+	bEvent = 0
+	KillTimer(2)
+	KillTimer(3)
+	KillTimer(11)
+	KillTimer(12)
+	SendMent(g_SiegeEndMent)
+	local user = 0
+	while true do
+		user = GetNextZoneUser(user, g_SiegestZone)
+		if user == 0 then
+			break;
+		end
+		SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_TIMEOFF, "", 0)
+	end
+end
+
+function VictoryAndClear()
+    local user = 0
+    SetZoneMode(g_SiegestZone, ZF_REGEN)
+    while true do
+		user = GetNextZoneUser(user, g_SiegestZone)
+		if user == 0 then
+			break;
+		end
+		if Victory == 0 then
+			SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_ESCRON, "", 0)
+		elseif Victory == 1 then
+			SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_ESCRON2, "", 0)
+		end
+		SendEventUser(user, NOTICE_CONTROL, NOTICE_ZONE_SLOWBRIGHT, "", 0)
+		SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_SIEGEOFF, "", 0)
+		SendEventUser(user, NOTICE_SOUND, 1426, "", 0)
+	end
+	for i = 1, MAX_NPC do
+		if GetCodeNPC(NPCINFO.handle[i]) == NPCINFO.ID[i] then
+		  DestroyNPC(NPCINFO.handle[i])
+		end
+	end
+	ZoneKillSummonNpc(g_SiegestZone)
+	SetWarpEngine(g_SiegestZone, 0, 0)
+	SetWarpEngine(g_SiegestZone, 1, 0)
+end
+
+function CleanUp()
+	StartMsgNum = 0
+	TimeCount = 0
+	Victory = 0
+	bEvent = 0
+	bAllDeadDWarp = 0
+	AttackUnion = 0
+	DefenseUnion = 0
+	EndTime = 6000000
+	bOnceTimeShow = 0
+	SendCount = 0
+	bOnceDestroy = 0
+	bgo = 0
+	NPCINFO.bDead = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	NPCINFO.handle = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	KillTimer(0)
+	KillTimer(1)
+	KillTimer(2)
+	KillTimer(9)
+	KillTimer(10)
+	KillTimer(11)
+	KillTimer(12)
+	KillTimer(13)
+	KillTimer(14)
+	KillTimer(99)
+	KillTimer(100)
+	SetSiegeMode(g_SiegestZone, 0)
+	SetZoneRegen(g_SiegestZone)
+	local user = 0
+	while true do
+		user = GetNextZoneUser(user, g_SiegestZone)
+		if user == 0 then
+			break;
+		end
+		SendEventUser(user, NOTICE_BGM, 5, "", 10)
+	end
+	SetTimer(100, 1000)
+end
+
+function AllDeadDWarp()
+	bAllDeadDWarp = 1
+	SetWarpEngine(g_SiegestZone, 0, 0)
+	SetRegenPos(g_SiegestZone, 0, 1202, 3832, 10)
+end
+
+function StatusImg()
+	local user = 0
+	for i = 1, 5 do
+		if IsDamagedNPC(NPCINFO.handle[i]) == 1 and i ~= 2 then
+		user = 0
+			while true do
+				user = GetNextZoneUser(user, g_SiegestZone)
+				if user == 0 then
+				break;
+				end
+				SendEventUser(user, NOTICE_EVENT, NPCINFO.ImgAttack[i], "", NPCINFO.ImgAttackex[i])
+			end
+		elseif IsDeadNPC(NPCINFO.handle[i]) == 1 and i ~= 2 then
+			user = 0
+			while true do
+				user = GetNextZoneUser(user, g_SiegestZone)
+				if user == 0 then
+				break;
+				end
+				SendEventUser(user, NOTICE_EVENT, NPCINFO.ImgDead[i], "", NPCINFO.ImgDeadex[i])
+			end
+		end
+	end
+end
+
+function PlayLoading()
+	local user = 0
+
+	local npc = 0
+	bEvent = 1
+	while true do
+		user = GetNextZoneUser(user, g_SiegestZone)
+		if user == 0 then
+			break;
+		end
+		SendEventUser(user, NOTICE_BGM, 12, "", 10)
+		SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_SSCRON, "", 10)
+		SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_SIEGEON, "", 0)
+	end
+	SetZoneMode(g_SiegestZone, ZF_NOREGEN)
+	OutOfNpcInZone(g_SiegestZone, 0)
+	OutOfNpcInZone(g_SiegestZone, 1)
+	ZoneKillNpc(g_SiegestZone)
+	ZoneKillSummonNpc(g_SiegestZone)
+	SetSiegeMode(g_SiegestZone, 1)
+	SetRegenPos(g_SiegestZone, 1, 1953, 1715, 10, 180)
+	SetRegenPos(g_SiegestZone, 0, 928, 2059, 10)
+	SetRegenPos(g_SiegestZone, 2, 1202, 3832, 10)
+	SetWarpEngine(g_SiegestZone, 0, 1)
+	SetWarpEngine(g_SiegestZone, 1, 1)
+end
+
+function CreateNPCs()
+	--NPCINFO.handle[2] = CreateNPC(NPCINFO.ID[2], 10, 1269, 1745, -2000, 0, 0, 7, DefenseUnion)
+	if g_SiegestZone == 10 then
+		NPCINFO.handle[2] = CreateNPC(NPCINFO.ID[2], g_SiegestZone, 1269, 1745, -2000, 0, 0, 7, DefenseUnion)
+		NPCINFO.handle[3] = CreateNPC(NPCINFO.ID[3], g_SiegestZone, 1926, 1706, -2000, 0, 0, 7, AttackUnion)
+		NPCINFO.handle[4] = CreateNPC(NPCINFO.ID[4], g_SiegestZone, 891, 2059, -2000, 0, 0, 7, DefenseUnion)
+		NPCINFO.handle[5] = CreateNPC(NPCINFO.ID[5], g_SiegestZone, 850, 1481, -2000, 0, 0, 7, DefenseUnion)
+		NPCINFO.handle[6] = CreateNPC(NPCINFO.ID[6], g_SiegestZone, 1845, 1736, -2000, 0, 40, 7, AttackUnion)
+		NPCINFO.handle[7] = CreateNPC(NPCINFO.ID[7], g_SiegestZone, 490, 2130, -2000, 270, 6, 7, DefenseUnion)
+		NPCINFO.handle[8] = CreateNPC(NPCINFO.ID[8], g_SiegestZone, 503, 1378, -2000, 0, 5, 7, DefenseUnion)
+		NPCINFO.handle[9] = CreateNPC(NPCINFO.ID[9], g_SiegestZone, 950, 1595, -2000, 90, 7, 7, DefenseUnion)
+		NPCINFO.handle[10] = CreateNPC(NPCINFO.ID[10], g_SiegestZone, 968, 2101, -2000, 270, 40, 7, DefenseUnion)
+
+	elseif g_SiegestZone == 0 then
+		NPCINFO.handle[2] = CreateNPC(NPCINFO.ID[2], g_SiegestZone, 1750, 950, -2000, 90, 0, 7, DefenseUnion)
+	end
+end
+
+function MoveZoneToZoneA()
+	local user = 0
+	while true do
+		user = GetNextZoneUser(user, g_SiegestZone)
+		if user == 0 then
+			break;
+		end
+		if AttackUnion == GetUnionUser(user) then
+			DebugMessage("{1} 傍己", GetNameUser(user))
+			MoveZoneUser(user, g_SiegestZone, 1202, 3832, 10)
+		elseif DefenseUnion == GetUnionUser(user) then
+			DebugMessage("{1} 荐己", GetNameUser(user))
+			MoveZoneUser(user, g_SiegestZone, 1202, 3832, 10)
+		elseif GetGradeUser(user) == 0 then
+			DebugMessage("{1} 吝赋", GetNameUser(user))
+			MoveZoneUser(user, g_SiegestZone, 1202, 3832, 10)
+		else
+			DebugMessage("{1} 吝赋款康磊 {2}", GetNameUser(user), GetGradeUser(user))
+			MoveZoneUser(user, g_SiegestZone, 1202, 3832, 10)
+		end
+	end
+   
+end
+
+function PlayGame()
+	local user = 0
+	SendMent(g_SiegeStartMent)
+	bEvent = 2
+	while true do
+		user = GetNextZoneUser(user, g_SiegestZone)
+		if user == 0 then
+			break;
+		end
+		SendEventUser(user, NOTICE_SOUND, 1426, "", 0)
+		SendEventUser(user, NOTICE_CONTROL, NOTICE_ZONE_SLOWDARK, "", 0)
+		SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_TIMEON, "", 100)
+		SendEventUser(user, NOTICE_TIME, EndTime, "", 0)
+	end
+	
+	GotoFirstTask()
+	BeginCreateTeamList()
+	SetTimer(TimerID_TaskStateCheck, 100*60)
+	SendServerMessage("异族来袭,他们要毁坏我们的家园,守护家园的任务就交给你们了！", 0x00ff00)
+
+end
+
+function OnDeadNPC(hNPC, hAttacker)
+	if bEvent ~= 0 then
+		local npccode = GetCodeNPC(hNPC)
+		if hNPC == NPCINFO.handle[2] and NPCINFO.handle[1] == 0 then
+			NPCINFO.handle[1] = CreateNPC(NPCINFO.ID[1], g_SiegestZone, 639, 1740, 40, 0, 0, 7, DefenseUnion)
+		elseif hNPC == NPCINFO.handle[3] then
+			SetWarpEngine(g_SiegestZone, 1, 0)
+			SetRegenPos(g_SiegestZone, 1, 1202, 3832, 10)
+		elseif hNPC == NPCINFO.handle[4] then
+			SetRegenPos(g_SiegestZone, 0, 815, 1464, 10)
+			if IsDeadNPC(NPCINFO.handle[5]) == 1 then
+				AllDeadDWarp()
+			end
+		elseif hNPC == NPCINFO.handle[5] and IsDeadNPC(NPCINFO.handle[4]) == 1 then
+			AllDeadDWarp()
+		end
+
+		local user = 0
+		while true do
+			user = GetNextZoneUser(user, g_SiegestZone)
+			if user == 0 then
+				break;
+			end
+			if npccode ~= 2 then
+				SendEventUser(user, NOTICE_EVENT, NPCINFO.ImgDead[npccode], "", NPCINFO.ImgDeadex[npccode])
+			end
+			if hNPC == NPCINFO.handle[1] then
+				SendEventUser(user, NOTICE_CONTROL, NOTICE_ZONE_EARTHQUAKE, "", 10)
+				SendEventUser(user, NOTICE_SOUND, 1429, "", 10)
+			elseif hNPC == NPCINFO.handle[2] then
+				SendEventUser(user, NOTICE_SOUND, 1427, "", 10)
+			elseif hNPC == NPCINFO.handle[3] then
+				SendEventUser(user, NOTICE_SOUND, 1428, "", 10)
+			elseif hNPC == NPCINFO.handle[4] then
+				SendEventUser(user, NOTICE_SOUND, 1428, "", 10)
+			elseif hNPC == NPCINFO.handle[5] then
+				SendEventUser(user, NOTICE_SOUND, 1428, "", 10)
+			end
+		end
+		for i = 1, 5 do
+			if npccode == NPCINFO.ID[i] then
+				SendMent(DeadMsg[i])
+				break;
+			end
+		end
+		
+		if hAttacker == nil or hAttacker == 0 or hAttacker == -1 then
+			return
+		end
+		local npcid = GetCodeNPC(hNPC)
+		local zone = GetZoneNPC(hNPC)
+		local k,v
+
+		for k, v in pairs(g_ItemList) do
+			if v.zone == zone then
+				if v.NpcId == nil or v.NpcId == npcid then
+					local item_list = RandomMakerList(v.ItemList, "rate", v.MakeCount)
+					CreateItemList(item_list, hNPC, hAttacker, "item")
+				end
+			end
+		end
+		
+	end
+end
+
+function OnTimer(TimerID)
+	if TimerID == 0 then
+		if StartMsgNum == 0 then
+			SendMent(g_SiegeRedyMent[3])
+		elseif StartMsgNum == 1 then
+			SendMent(g_SiegeRedyMent[2])
+		elseif StartMsgNum == 2 then
+			SendMent(g_SiegeRedyMent[1])
+		elseif StartMsgNum == 3 then
+			KillTimer(0)
+			SetTimer(1, 100)
+			SetTimer(12, 6000)
+		elseif StartMsgNum > 3 then
+			KillTimer(0)
+			PlayGame()
+			SetTimer(2, 100)
+			SetTimer(11, 200)
+		end
+		StartMsgNum = StartMsgNum + 1
+	elseif TimerID == 1 then
+		KillTimer(1)
+		PlayLoading()
+		CreateNPCs()
+		MoveZoneToZoneA()
+		SetTimer(0, 1000)
+	elseif TimerID == 2 then
+		EndTime = EndTime - 1000
+		SendCount = SendCount + 1
+		if SendCount > 10 then
+			local user = 0
+			SendCount = 0
+			while true do
+				user = GetNextZoneUser(user, g_SiegestZone)
+				if user == 0 then
+					break;
+				end
+				SendEventUser(user, NOTICE_TIME, EndTime, "", 0)
+			end
+		elseif EndTime < 0 then
+			KillTimer(2)
+			WinDefender()
+			SetTimer(9, 1000)
+		end
+	elseif TimerID == 11 then
+		StatusImg()
+	elseif TimerID == 9 then
+		KillTimer(9)
+		SendMent(g_SiegeThankMent)
+		SetTimer(10, 6000)
+	elseif TimerID == 10 then
+		KillTimer(10)
+		VictoryAndClear()
+		SetTimer(14, 500)
+	elseif TimerID == 14 then
+		KillTimer(14)
+		CleanUp()
+	elseif TimerID == 100 then
+		DebugMessage("Siege Time Check : {1} - {2}:{3}", GetDayTime(DDT_DAYWEEK), GetDayTime(DDT_HOUR), GetDayTime(DDT_MINUTE))
+		if GetDayTime(DDT_DAYWEEK) == DDW_SUNDAY and GetDayTime(DDT_HOUR) == 20 and GetDayTime(DDT_MINUTE) == 30 then
+			KillTimer(100)
+			StartUp()
+		end
+		
+		--if GetDayTime(DDT_DAYWEEK) == DDW_FRIDAY and GetDayTime(DDT_HOUR) == 20 and GetDayTime(DDT_MINUTE) == 00 then
+		--	KillTimer(100)
+		--	StartUp()
+		--end
+		--if GetDayTime(DDT_DAYWEEK) == DDW_WEDNESDAY and GetDayTime(DDT_HOUR) == 20 and GetDayTime(DDT_MINUTE) == 30 then
+		--	KillTimer(100)
+		--	StartUp()
+		--end
+		if bgo == 1 then
+			KillTimer(100)
+			StartUp()
+		end
+	elseif TimerID == TimerID_TaskStateCheck then
+		g_CurrentTime = g_CurrentTime + 1
+		DoTaskStateCheck(g_CurrentTime)
+	end
+	linger.timer(TimerID)
+end
+	
+
+function StartUp()
+	AttackUnion = GetAttackUnion(g_SiegestZone)
+	DefenseUnion = GetDefenseUnion(g_SiegestZone)  --守城方
+	if DefenseUnion ~= 0 then
+		bgo = 0
+		SetTimer(0, 1000)
+		SendMent(g_SiegeSoonMent)
+	else
+		bgo = 0
+		SendMent(g_SiegeNothingMent)
+		SetTimer(100, 1000)
+	end
+end
+
+function OnDestroy()
+	if bOnceDestroy == 0 then
+		for i = 0, MAX_TIMER do
+			KillTimer(i)
+		end
+		for i = 1, MAX_NPC do
+			if GetCodeNPC(NPCINFO.handle[i]) == NPCINFO.ID[i] then
+				DestroyNPC(NPCINFO.handle[i])
+			end
+		end
+		local user = 0
+		while true do
+			user = GetNextZoneUser(user, g_SiegestZone)
+			if user == 0 then
+				break;
+			end
+			SendEventUser(user, NOTICE_CONTROL, NOTICE_ZONE_FASTBRIGHT, "", 10)
+			SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_SIEGEOFF, "", 10)
+			SendEventUser(user, NOTICE_EVENT, NOTICE_EVENT_TIMEOFF, "", 10)
+			SendEventUser(user, NOTICE_BGM, 5, "", 10)
+		end
+		SetWarpEngine(g_SiegestZone, 0, 0)
+		SetWarpEngine(g_SiegestZone, 1, 0)
+		SetSiegeMode(g_SiegestZone, 0)
+		SetZoneMode(g_SiegestZone, ZF_REGEN)
+		SetZoneRegen(g_SiegestZone)
+		ZoneKillSummonNpc(g_SiegestZone)
+		bOnceDestroy = 1
+	end
+end
+
+function EventMode(userhandle)
+	if bEvent > 0 and bEvent == 2 then
+		SendEventUser(userhandle, NOTICE_EVENT, NOTICE_EVENT_TIMEON, "", 100)
+		SendEventUser(userhandle, NOTICE_CONTROL, NOTICE_ZONE_FASTDARK, "", 10)
+		SendEventUser(userhandle, NOTICE_TIME, EndTime, "", 0)
+	end
+end
+
+function OnJoinGame(userhandle)
+	if bEvent > 0 then
+		SendEventUser(userhandle, NOTICE_BGM, 12, "", 10)
+		SendEventUser(userhandle, NOTICE_EVENT, NOTICE_EVENT_SIEGEON, "", 10)
+	end
+end
+
+function OnPCIn(userhandle)
+	if GetZoneUser(userhandle) == g_SiegestZone then
+		EventMode(userhandle)
+	end
+end
+
+function OnLeaveGame(userhandle)
+	SendEventUser(userhandle, NOTICE_EVENT, NOTICE_EVENT_SIEGEOFF, "", 0)
+	SendEventUser(userhandle, NOTICE_EVENT, NOTICE_EVENT_TIMEOFF, "", 0)
+end
+
+
+server_yuntian = "义薄云天"
+server_rongyao = "京华烟云"
+server_anhei = "神恩之地"
+--_server_anhei = "暗黑大陆"
+server_test = "乱世纷争"
+
+if GetServerGame() == server_test then
+	GM_DEBUG = true
+end
+
+
+g_gamezone = 10
+g_CurrentTime = 0
+TimerID_TaskStateCheck = 1126
+--------------------------------------
+if GetServerGame() == server_anhei or GM_DEBUG then
+---------------------------------------------
+-- 神恩设置
+g_NpcTeam1 = {
+ { NpcId = 2714, Zone = g_gamezone, StartX = 840, StartY = 1640, EndX = 840, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2747, Zone = g_gamezone, StartX = 800, StartY = 1640, EndX = 800, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 990, StartY = 1640, EndX = 990, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2747, Zone = g_gamezone, StartX = 1040, StartY = 1640, EndX = 1040, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 660, StartY = 1740, EndX = 780, EndY = 1740, count = 3, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 600, StartY = 1700, EndX = 600, EndY = 1820, count = 3, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 640, StartY = 1700, EndX = 640, EndY = 1860, count = 2, Direct = 0 },
+ { NpcId = 2716, Zone = g_gamezone, StartX = 520, StartY = 1860, EndX = 800, EndY = 1860, count = 10, Direct = 270 },
+ { NpcId = 2716, Zone = g_gamezone, StartX = 520, StartY = 1640, EndX = 800, EndY = 1640, count = 10, Direct = 270 }
+};
+
+g_NpcTeam2 = {
+ { NpcId = 2714, Zone = g_gamezone, StartX = 840, StartY = 1640, EndX = 840, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2826, Zone = g_gamezone, StartX = 800, StartY = 1640, EndX = 800, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 990, StartY = 1640, EndX = 990, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2826, Zone = g_gamezone, StartX = 1040, StartY = 1640, EndX = 1040, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 660, StartY = 1740, EndX = 780, EndY = 1740, count = 3, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 600, StartY = 1700, EndX = 600, EndY = 1820, count = 3, Direct = 0 },
+ { NpcId = 2764, Zone = g_gamezone, StartX = 640, StartY = 1700, EndX = 640, EndY = 1860, count = 2, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 530, StartY = 1800, EndX = 530, EndY = 1650, count = 4, Direct = 0 },
+ { NpcId = 2716, Zone = g_gamezone, StartX = 520, StartY = 1860, EndX = 800, EndY = 1860, count = 10, Direct = 270 },
+ { NpcId = 2714, Zone = g_gamezone, StartX = 520, StartY = 1640, EndX = 800, EndY = 1640, count = 10, Direct = 270 }
+};
+
+g_NpcTeam3 = {
+ { NpcId = 2714, Zone = g_gamezone, StartX = 840, StartY = 1640, EndX = 840, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 990, StartY = 1640, EndX = 990, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2746, Zone = g_gamezone, StartX = 1040, StartY = 1640, EndX = 1040, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 660, StartY = 1740, EndX = 780, EndY = 1740, count = 5, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 600, StartY = 1700, EndX = 600, EndY = 1820, count = 3, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 640, StartY = 1700, EndX = 640, EndY = 1860, count = 2, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 530, StartY = 1800, EndX = 530, EndY = 1650, count = 5, Direct = 0 },
+ { NpcId = 2964, Zone = g_gamezone, StartX = 930, StartY = 1650, EndX = 930, EndY = 1800, count = 4, Direct = 0 },
+ { NpcId = 2714, Zone = g_gamezone, StartX = 520, StartY = 1860, EndX = 800, EndY = 1860, count = 10, Direct = 270 },
+ { NpcId = 2716, Zone = g_gamezone, StartX = 520, StartY = 1640, EndX = 800, EndY = 1640, count = 10, Direct = 270 }
+};
+
+g_NpcTeam4 = {
+ { NpcId = 2764, Zone = g_gamezone, StartX = 840, StartY = 1640, EndX = 840, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2744, Zone = g_gamezone, StartX = 800, StartY = 1640, EndX = 800, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 990, StartY = 1640, EndX = 990, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2744, Zone = g_gamezone, StartX = 1040, StartY = 1640, EndX = 1040, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 660, StartY = 1740, EndX = 780, EndY = 1740, count = 5, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 600, StartY = 1700, EndX = 600, EndY = 1820, count = 3, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 640, StartY = 1700, EndX = 640, EndY = 1860, count = 2, Direct = 0 },
+ { NpcId = 2962, Zone = g_gamezone, StartX = 530, StartY = 1800, EndX = 530, EndY = 1650, count = 5, Direct = 0 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 930, StartY = 1650, EndX = 930, EndY = 1800, count = 10, Direct = 0 },
+ { NpcId = 2714, Zone = g_gamezone, StartX = 520, StartY = 1860, EndX = 800, EndY = 1860, count = 10, Direct = 270 },
+ { NpcId = 2716, Zone = g_gamezone, StartX = 520, StartY = 1640, EndX = 800, EndY = 1640, count = 10, Direct = 270 }
+};
+
+g_NpcTeam5 = {
+ { NpcId = 2740, Zone = g_gamezone, StartX = 840, StartY = 1640, EndX = 840, EndY = 1800, count = 5, Direct = 270 },
+ { NpcId = 2766, Zone = g_gamezone, StartX = 1100, StartY = 1640, EndX = 1100, EndY = 1800, count = 5, Direct = 270 },
+ { NpcId = 2741, Zone = g_gamezone, StartX = 800, StartY = 1640, EndX = 800, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 1604, Zone = g_gamezone, StartX = 1160, StartY = 1640, EndX = 1160, EndY = 1800, count = 3, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 990, StartY = 1640, EndX = 990, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2714, Zone = g_gamezone, StartX = 1040, StartY = 1640, EndX = 1040, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 660, StartY = 1740, EndX = 780, EndY = 1740, count = 5, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 600, StartY = 1700, EndX = 600, EndY = 1820, count = 3, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 640, StartY = 1700, EndX = 640, EndY = 1860, count = 2, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 530, StartY = 1800, EndX = 530, EndY = 1650, count = 5, Direct = 0 },
+ { NpcId = 2723, Zone = g_gamezone, StartX = 800, StartY = 1720, EndX = 990, EndY = 1720, count = 1, Direct = 270 }
+};
+
+g_NpcTeam6 = {
+ { NpcId = 2716, Zone = g_gamezone, StartX = 840, StartY = 1640, EndX = 840, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 1100, StartY = 1640, EndX = 1100, EndY = 1800, count = 5, Direct = 270 },
+ { NpcId = 2916, Zone = g_gamezone, StartX = 800, StartY = 1640, EndX = 800, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 1604, Zone = g_gamezone, StartX = 1160, StartY = 1640, EndX = 1160, EndY = 1800, count = 3, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 990, StartY = 1640, EndX = 990, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 1040, StartY = 1640, EndX = 1040, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 660, StartY = 1740, EndX = 780, EndY = 1740, count = 5, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 600, StartY = 1700, EndX = 600, EndY = 1820, count = 3, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 640, StartY = 1700, EndX = 640, EndY = 1860, count = 2, Direct = 0 },
+ { NpcId = 2962, Zone = g_gamezone, StartX = 530, StartY = 1800, EndX = 530, EndY = 1650, count = 5, Direct = 0 },
+ { NpcId = 2766, Zone = g_gamezone, StartX = 930, StartY = 1650, EndX = 930, EndY = 1800, count = 10, Direct = 0 },
+ { NpcId = 2724, Zone = g_gamezone, StartX = 800, StartY = 1720, EndX = 990, EndY = 1720, count = 1, Direct = 270 },
+ { NpcId = 2723, Zone = g_gamezone, StartX = 800, StartY = 1720, EndX = 990, EndY = 1720, count = 1, Direct = 270 }
+};
+
+---------------------------------------------
+-- 攻城掉落装备设置
+g_ItemList = {
+  { zone=g_gamezone, NpcId=nil, ItemList={ 
+	{item=5369,rate=1/2500},{item=5370,rate=1/2500},{item=5371,rate=1/2500},{item=5372,rate=1/2500},{item=2765,rate=1/2500},
+	{item=5287,rate=1/2500},{item=5288,rate=1/2500},{item=5289,rate=1/2500},{item=5290,rate=1/2500},{item=5291,rate=1/2500}
+	},MakeCount=1
+  };
+};
+elseif GetServerGame() == server_rongyao then
+---------------------------------------------
+-- 荣耀设置
+
+g_NpcTeam1 = {
+ { NpcId = 2764, Zone = g_gamezone, StartX = 840, StartY = 1640, EndX = 840, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2765, Zone = g_gamezone, StartX = 800, StartY = 1640, EndX = 800, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 990, StartY = 1640, EndX = 990, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 1040, StartY = 1640, EndX = 1040, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 660, StartY = 1740, EndX = 780, EndY = 1740, count = 5, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 600, StartY = 1700, EndX = 600, EndY = 1820, count = 3, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 640, StartY = 1700, EndX = 640, EndY = 1860, count = 2, Direct = 0 },
+ { NpcId = 2716, Zone = g_gamezone, StartX = 520, StartY = 1860, EndX = 800, EndY = 1860, count = 10, Direct = 270 },
+ { NpcId = 2716, Zone = g_gamezone, StartX = 520, StartY = 1640, EndX = 800, EndY = 1640, count = 10, Direct = 270 }
+};
+
+g_NpcTeam2 = {
+ { NpcId = 2764, Zone = g_gamezone, StartX = 840, StartY = 1640, EndX = 840, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2765, Zone = g_gamezone, StartX = 800, StartY = 1640, EndX = 800, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 990, StartY = 1640, EndX = 990, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 1040, StartY = 1640, EndX = 1040, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 660, StartY = 1740, EndX = 780, EndY = 1740, count = 5, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 600, StartY = 1700, EndX = 600, EndY = 1820, count = 3, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 640, StartY = 1700, EndX = 640, EndY = 1860, count = 2, Direct = 0 },
+ { NpcId = 2740, Zone = g_gamezone, StartX = 530, StartY = 1800, EndX = 530, EndY = 1650, count = 5, Direct = 0 },
+ { NpcId = 2714, Zone = g_gamezone, StartX = 520, StartY = 1860, EndX = 800, EndY = 1860, count = 10, Direct = 270 },
+ { NpcId = 2714, Zone = g_gamezone, StartX = 520, StartY = 1640, EndX = 800, EndY = 1640, count = 10, Direct = 270 }
+};
+
+g_NpcTeam3 = {
+ { NpcId = 2764, Zone = g_gamezone, StartX = 840, StartY = 1640, EndX = 840, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2765, Zone = g_gamezone, StartX = 800, StartY = 1640, EndX = 800, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 990, StartY = 1640, EndX = 990, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 1040, StartY = 1640, EndX = 1040, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 660, StartY = 1740, EndX = 780, EndY = 1740, count = 5, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 600, StartY = 1700, EndX = 600, EndY = 1820, count = 3, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 640, StartY = 1700, EndX = 640, EndY = 1860, count = 2, Direct = 0 },
+ { NpcId = 2741, Zone = g_gamezone, StartX = 530, StartY = 1800, EndX = 530, EndY = 1650, count = 5, Direct = 0 },
+ { NpcId = 2917, Zone = g_gamezone, StartX = 930, StartY = 1650, EndX = 930, EndY = 1800, count = 5, Direct = 0 },
+ { NpcId = 2714, Zone = g_gamezone, StartX = 520, StartY = 1860, EndX = 800, EndY = 1860, count = 10, Direct = 270 },
+ { NpcId = 2714, Zone = g_gamezone, StartX = 520, StartY = 1640, EndX = 800, EndY = 1640, count = 10, Direct = 270 }
+};
+
+g_NpcTeam4 = {
+ { NpcId = 2764, Zone = g_gamezone, StartX = 840, StartY = 1640, EndX = 840, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2765, Zone = g_gamezone, StartX = 800, StartY = 1640, EndX = 800, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 990, StartY = 1640, EndX = 990, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2715, Zone = g_gamezone, StartX = 1040, StartY = 1640, EndX = 1040, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 660, StartY = 1740, EndX = 780, EndY = 1740, count = 5, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 600, StartY = 1700, EndX = 600, EndY = 1820, count = 3, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 640, StartY = 1700, EndX = 640, EndY = 1860, count = 2, Direct = 0 },
+ { NpcId = 2917, Zone = g_gamezone, StartX = 530, StartY = 1800, EndX = 530, EndY = 1650, count = 5, Direct = 0 },
+ { NpcId = 2764, Zone = g_gamezone, StartX = 930, StartY = 1650, EndX = 930, EndY = 1800, count = 10, Direct = 0 },
+ { NpcId = 2714, Zone = g_gamezone, StartX = 520, StartY = 1860, EndX = 800, EndY = 1860, count = 10, Direct = 270 },
+ { NpcId = 2714, Zone = g_gamezone, StartX = 520, StartY = 1640, EndX = 800, EndY = 1640, count = 10, Direct = 270 }
+};
+
+g_NpcTeam5 = {
+ { NpcId = 2917, Zone = g_gamezone, StartX = 840, StartY = 1640, EndX = 840, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2917, Zone = g_gamezone, StartX = 1100, StartY = 1640, EndX = 1100, EndY = 1800, count = 7, Direct = 270 },
+ { NpcId = 2766, Zone = g_gamezone, StartX = 800, StartY = 1640, EndX = 800, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2766, Zone = g_gamezone, StartX = 1160, StartY = 1640, EndX = 1160, EndY = 1800, count = 7, Direct = 270 },
+ { NpcId = 2741, Zone = g_gamezone, StartX = 990, StartY = 1640, EndX = 990, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2714, Zone = g_gamezone, StartX = 1040, StartY = 1640, EndX = 1040, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 660, StartY = 1740, EndX = 780, EndY = 1740, count = 5, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 600, StartY = 1700, EndX = 600, EndY = 1820, count = 3, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 640, StartY = 1700, EndX = 640, EndY = 1860, count = 2, Direct = 0 },
+ { NpcId = 2917, Zone = g_gamezone, StartX = 530, StartY = 1800, EndX = 530, EndY = 1650, count = 5, Direct = 0 },
+ { NpcId = 2766, Zone = g_gamezone, StartX = 930, StartY = 1650, EndX = 930, EndY = 1800, count = 10, Direct = 0 },
+ { NpcId = 2721, Zone = g_gamezone, StartX = 520, StartY = 1860, EndX = 800, EndY = 1860, count = 10, Direct = 270 },
+ { NpcId = 2721, Zone = g_gamezone, StartX = 520, StartY = 1640, EndX = 800, EndY = 1640, count = 10, Direct = 270 },
+ { NpcId = 2723, Zone = g_gamezone, StartX = 800, StartY = 1720, EndX = 990, EndY = 1720, count = 1, Direct = 270 }
+};
+
+g_NpcTeam6 = {
+ { NpcId = 2758, Zone = g_gamezone, StartX = 840, StartY = 1640, EndX = 840, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2766, Zone = g_gamezone, StartX = 1100, StartY = 1640, EndX = 1100, EndY = 1800, count = 7, Direct = 270 },
+ { NpcId = 2917, Zone = g_gamezone, StartX = 800, StartY = 1640, EndX = 800, EndY = 1800, count = 8, Direct = 270 },
+ { NpcId = 2917, Zone = g_gamezone, StartX = 1160, StartY = 1640, EndX = 1160, EndY = 1800, count = 7, Direct = 270 },
+ { NpcId = 2741, Zone = g_gamezone, StartX = 990, StartY = 1640, EndX = 990, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2714, Zone = g_gamezone, StartX = 1040, StartY = 1640, EndX = 1040, EndY = 1800, count = 10, Direct = 270 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 660, StartY = 1740, EndX = 780, EndY = 1740, count = 5, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 600, StartY = 1700, EndX = 600, EndY = 1820, count = 3, Direct = 0 },
+ { NpcId = 2762, Zone = g_gamezone, StartX = 640, StartY = 1700, EndX = 640, EndY = 1860, count = 2, Direct = 0 },
+ { NpcId = 2917, Zone = g_gamezone, StartX = 530, StartY = 1800, EndX = 530, EndY = 1650, count = 5, Direct = 0 },
+ { NpcId = 2766, Zone = g_gamezone, StartX = 930, StartY = 1650, EndX = 930, EndY = 1800, count = 10, Direct = 0 },
+ { NpcId = 2721, Zone = g_gamezone, StartX = 520, StartY = 1860, EndX = 800, EndY = 1860, count = 10, Direct = 270 },
+ { NpcId = 2721, Zone = g_gamezone, StartX = 520, StartY = 1640, EndX = 800, EndY = 1640, count = 10, Direct = 270 },
+ { NpcId = 2724, Zone = g_gamezone, StartX = 800, StartY = 1720, EndX = 990, EndY = 1720, count = 1, Direct = 270 },
+ { NpcId = 2723, Zone = g_gamezone, StartX = 800, StartY = 1720, EndX = 990, EndY = 1720, count = 1, Direct = 270 }
+};
+
+---------------------------------------------
+-- 攻城掉落装备设置
+g_ItemList = {
+  { zone=10, NpcId=nil, ItemList={ 
+	{item=5359,rate=1/300},{item=5358,rate=1/300},{item=5359,rate=1/300},{item=5359,rate=1/300},{item=5359,rate=1/300},
+	{item=5358,rate=1/300},{item=5359,rate=1/300},{item=6101,rate=1/300},{item=6501,rate=1/300},{item=5359,rate=1/300},
+	{item=5359,rate=1/300},{item=5358,rate=1/300},{item=5359,rate=1/300},{item=5359,rate=1/300},{item=5358,rate=1/300},
+	{item=5358,rate=1/300},{item=5359,rate=1/300},{item=5359,rate=1/300},{item=5358,rate=1/300},{item=5359,rate=1/300},
+	},MakeCount=1
+  }
+};
+end
+-----------------------------------------------------------------
+
+TaskTeamList = { --以上面对应的刷新列表
+ [1] = g_NpcTeam1,
+ [2] = g_NpcTeam2,
+ [3] = g_NpcTeam3,
+ [4] = g_NpcTeam4,
+ [5] = g_NpcTeam5,
+ [6] = g_NpcTeam6,
+ [7] = nil
+};
+
+
+function GetFirstTaskId() --从列队开始
+	return 1
+end
+function GetLastTaskId()  --列队结束
+	return 6
+end
+
+function OnTaskFailed()
+	local list = GetCurrentTaskTeamList()
+	DestroyNpcList(list, "Zone", "NpcId")
+	SendServerMessage("守城失败！魔王军团占领西堤斯！！！", 0x00ff00)
+	local AddJf = 0
+	DebugMessage(g_CurrentTeamIndex-1)
+	if g_CurrentTeamIndex-1 == 1 then --第1波攻击完成
+		AddJf = 1
+	end
+	if g_CurrentTeamIndex-1 == 2 then --第2波攻击完成
+		AddJf = 3
+	end
+	if g_CurrentTeamIndex-1 == 3 then --第3波攻击完成
+		AddJf = 6
+	end
+	if g_CurrentTeamIndex-1 == 4 then --第4波攻击完成
+		AddJf = 10
+	end
+	if g_CurrentTeamIndex-1 == 5 then --第5波攻击完成
+		AddJf = 15
+	end
+	if AddJf > 0 then
+		local GcUnion = GetDefenseUnion(g_gamezone) --获取守城的联盟代码
+		--local GcUnion = 16778112
+		if GcUnion ~= nil and GcUnion ~= "" and GcUnion ~= 0 then
+			local userhandle = 0
+			local UserUnion = 0
+			while 1 do 
+				userhandle = SearchUser(userhandle, g_gamezone)
+				if userhandle == 0 then 
+					break;
+				end
+				UserUnion = GetUnionUser(userhandle) --获取玩家的联盟代码
+				local UserId = GetAccountNameUser(userhandle) --玩家帐号
+				local HotJF = GetUserHotJF(UserId) --获取玩家屠魔积分
+				DebugMessage("userid="..UserId..",hotjf="..HotJF.."")
+				if GcUnion == UserUnion then
+					SetUserHotJF(UserId,HotJF + AddJf) --每个联盟在线的玩家可获取的积分
+					UserTalk(userhandle, "守城失败！奖励"..AddJf.."个屠魔积分", 0xFFFF00)
+				end
+			end
+		end
+	end
+	WinAttacker();
+	KillTimer(TimerID_TaskStateCheck)
+end
+function OnAllTaskFinish()
+	SendServerMessage("守城成功！魔王军团成功的被驱逐！！！", 0x00ff00)
+	local GcUnion = GetDefenseUnion(g_gamezone) --获取守城的联盟代码
+	--local GcUnion = 16778112
+	if GcUnion ~= nil and GcUnion ~= "" and GcUnion ~= 0 then
+		local userhandle = 0
+		local UserUnion = 0
+		while 1 do 
+			userhandle = SearchUser(userhandle, g_gamezone)
+			if userhandle == 0 then 
+				break;
+			end
+			UserUnion = GetUnionUser(userhandle) --获取玩家的联盟代码
+			local UserId = GetAccountNameUser(userhandle) --玩家帐号
+			local HotJF = GetUserHotJF(UserId) --获取玩家屠魔积分
+			DebugMessage("userid="..UserId..",hotjf="..HotJF.."")
+			if GcUnion == UserUnion then
+				SetUserHotJF(UserId,HotJF + 300) --每个联盟在线的玩家可获取的积分
+				UserTalk(userhandle, "守城成功！奖励300个屠魔积分", 0xFFFF00)
+			end
+		end
+	end
+	EndTime = 1000
+	KillTimer(TimerID_TaskStateCheck)
+end
+
+function OnGotoNextTask()
+	SendServerMessage("守护成功,大家还有近2分钟时间休息,然后迎接下一波敌人", 0x00ff00)
+end
+
+function BeginCreateTeamList()
+	g_CurrentTime = 0
+	CreateNpcTeamList(GetCurrentTaskTeamList())
+end
+
+function DoTaskStateCheck(Time)
+	local ThisTaskFinish = not IsTaskFailed()
+	DebugMessage(tostring(IsTaskFailed()) .. ", " .. tostring( ThisTaskFinish ))
+	if ThisTaskFinish then
+		if Time <= 8 then
+			if IsLastTask() then
+				OnAllTaskFinish()
+			else
+				OnGotoNextTask()
+				g_CurrentTime = 8
+			end
+		elseif Time == 9 then
+			SendZoneMessage(g_gamezone, "还有1分钟将出现下一波攻击，战士们举起你们的武器吧！", 0x00ff00)
+		elseif Time == 10 then
+			GotoNextTask()
+			BeginCreateTeamList()
+			SendZoneMessage(g_gamezone, "敌人已冲向城池,英雄们举起你们的武器,为了保卫家园而战!", 0x00ff00)
+		else
+			-- //
+		end
+	else
+		if Time >= 8 then
+			OnTaskFailed()
+		elseif Time == 1 then
+			SendZoneMessage(g_gamezone, "伟大的科洛斯大陆勇士们，守卫着领土已1分钟", 0x00ff00)
+		elseif Time == 2 then
+			SendZoneMessage(g_gamezone, "伟大的科洛斯大陆勇士们，守卫着领土已2分钟", 0x00ff00)
+		elseif Time == 3 then
+			SendZoneMessage(g_gamezone, "伟大的科洛斯大陆勇士们，守卫着领土已3分钟", 0x00ff00)
+		elseif Time == 4 then
+			SendZoneMessage(g_gamezone, "伟大的科洛斯大陆勇士们，守卫着领土已4分钟", 0x00ff00)
+		elseif Time == 5 then
+			SendZoneMessage(g_gamezone, "伟大的科洛斯大陆勇士们，守卫着领土已5分钟", 0x00ff00)
+		elseif Time == 6 then
+			SendZoneMessage(g_gamezone, "坚守的时间不多了,最后二分钟,为了胜利,大家放开手杀戮吧", 0x00ff00)
+		elseif Time == 7 then
+			SendZoneMessage(g_gamezone, "坚固的城墙已破裂 再不击退强大的敌人,将会一分钟后被占领!", 0x00ff00)
+		end
+	end
+end
+
+function IsTaskFailed()
+	local list = GetCurrentTaskTeamList()
+	if list == nil then
+		DebugMessage("Current task is nil")
+		return true
+	end
+	local k,v
+	for k, v in pairs(list) do
+		local npchandle = 0
+		while true do
+			npchandle = GetNextZoneNPC(npchandle, v.Zone)
+			if npchandle == 0 then
+				break;
+			end
+			if IsDeadNPC(npchandle) == 0 and GetCodeNPC(npchandle) == v.NpcId then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+g_CurrentTeamIndex = -1
+
+function GotoFirstTask()
+	g_CurrentTeamIndex = GetFirstTaskId()
+end
+function GotoNextTask()
+	g_CurrentTeamIndex = g_CurrentTeamIndex + 1 -- goto next task
+end
+
+function IsFirstTask()
+	return g_CurrentTeamIndex == GetFirstTaskId()
+end
+function IsLastTask()
+	return g_CurrentTeamIndex == GetLastTaskId()
+end
+
+function GetCurrentTaskTeamList()
+	if g_CurrentTeamIndex >= GetFirstTaskId() and g_CurrentTeamIndex <= GetLastTaskId() then
+		return TaskTeamList[g_CurrentTeamIndex]
+	end
+	DebugMessage("GetCurrentTaskTeamList failed,g_CurrentTeamIndex="..tostring(g_CurrentTeamIndex))
+	return nil
+end
+
+function IsTaskRunning()
+	if g_CurrentTeamIndex >= GetFirstTaskId() and g_CurrentTeamIndex <= GetLastTaskId() then
+		return true
+	else
+		return false
+	end
+end
+

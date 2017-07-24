@@ -1,0 +1,179 @@
+---------------------------------------
+-- 在线时长统计
+-- 活动在线时间累计(积分)
+-- 2011-01-19
+-- 2017-04-20 By Thomas Wang
+---------------------------------------
+
+include("script/mylib.lua")
+include("script/apiPack.lua")
+include("script/CommandAnalyze.lua")
+
+function OnLoad()
+	return 1
+end
+
+GM_DEBUG = false
+g_isopen = false
+TimerId_TaskState = 789
+server_shenen = "神恩之地"
+server_rongyao = "荣耀天下"
+server_jinghua = "京华烟云"
+server_yeman = "野蛮王座"
+server_test = "乱世纷争"
+
+if GetServerGame() == server_test then
+	GM_DEBUG = true
+end
+
+
+g_JfTimeOption = false
+
+if GetServerGame() == server_rongyao then
+elseif GetServerGame() == server_jinghua then
+elseif GetServerGame() == server_shenen then
+elseif GetServerGame() == server_yeman then
+elseif GM_DEBUG then
+else
+	error("unknow script startup")
+end
+
+
+function CheckTimeTask()
+	local vdate = GetDateValue()
+	local vtime = GetTimeValue()
+	if (vdate>=20170711 and vdate<=20170831) then
+		if g_isopen == false then
+			StartTask()
+		end
+	elseif g_isopen then
+		StopTask()
+	end
+end
+function OnTimer(TimerID)
+	if TimerID == TimerID_TaskState then
+		CheckTimeTask()
+	end
+end
+function StartTask()
+	g_JfTimeOption = true
+	g_isopen = true
+	SendServerMessage("在线赢装备活动开启了(7月11~8月31),用命令/查询在线时间 查询在线时间", 0x00ff00)
+end
+function StopTask()
+	g_JfTimeOption = false
+	g_isopen = false
+end
+
+function OnStart()
+	if GM_DEBUG then
+		SetTimer(TimerId_TaskState, 100)
+	else
+		SetTimer(TimerId_TaskState, 100*60)
+	end
+	--linger.start()
+	CheckTimeTask()
+	
+end
+
+g_userlist={}
+-- { tick, EndLoad, last_get }
+
+function OnDestroy()
+	local k,v
+	for k,v in pairs(g_userlist) do
+		if v.EndLoad == true then
+			OnSaveCharacter(k)
+		end
+	end
+	g_userlist = {}
+end
+
+function OnLeaveGame(userhandle)
+	OnSaveCharacter(userhandle)
+	g_userlist[userhandle] = nil
+end
+
+function OnJoinGame(userhandle)
+	g_userlist[userhandle] = {}
+	g_userlist[userhandle].tick = GetTickCount()
+	g_userlist[userhandle].EndLoad = false
+end
+
+function OnEndLoading(userhandle)
+	if g_userlist[userhandle].EndLoad == false then
+		g_userlist[userhandle].tick = GetTickCount()
+		g_userlist[userhandle].EndLoad = true
+	end
+end
+
+function OnSaveCharacter(userhandle)
+	if g_userlist[userhandle] == nil then
+		return
+	end
+	TimeRate = GetTickCount() - g_userlist[userhandle].tick
+	TimeRate = TimeRate / 1000
+	
+	if TimeRate >= 5 then
+		AddOnlineTime(userhandle, TimeRate)
+		if g_JfTimeOption then
+			local t = AddJfTimeAndGetTime(userhandle, TimeRate)
+			if t - GetLastPickTime(userhandle) >= 10*60 then
+				SetLastPickTime(userhandle, t)
+				local UserId = GetAccountNameUser(userhandle)
+				SetUserHotJF(UserId, GetUserHotJF(UserId) + 1)
+			end
+		end
+		g_userlist[userhandle].tick = GetTickCount()
+	end
+end
+
+function OnCheckChat(userhandle, msg)
+	if g_JfTimeOption then
+		if msg == "/查询在线时间" then
+			local t=FormatTime( GetJfTime(userhandle) )
+			if t == "0秒" then
+				t = "0时"
+			end
+			local text = "您的积分在线时间为:" .. t
+			UserTalk(userhandle, text)
+			return 1;
+		end
+	end
+end
+
+stype_jftime_total = "在线赢装备_在线时间_总计"
+stype_jftime_last = "在线赢装备_积分累加_领取时间"
+
+function GetJfTime(userhandle)
+	local UserId = GetAccountNameUser(userhandle)
+	local ChrName = GetNameUser(userhandle)
+	local v = DB_GetUserData( stype_jftime_total, nil, UserId, ChrName, 0 )
+	v=(v-v%60)/60
+	v=(v-v%60)/60
+	v=v*60*60
+	return v
+end
+function AddJfTimeAndGetTime(userhandle, AddTime)
+	local UserId = GetAccountNameUser(userhandle)
+	local ChrName = GetNameUser(userhandle)
+	local v = DB_GetUserData( stype_jftime_total, nil, UserId, ChrName, 0 )
+	DB_UpdateUserData( stype_jftime_total, v+AddTime, nil, UserId, ChrName )
+	return v + AddTime
+end
+function GetLastPickTime(userhandle)
+	local UserId = GetAccountNameUser(userhandle)
+	local ChrName = GetNameUser(userhandle)
+	local v = DB_GetUserData( stype_jftime_last, nil, UserId, ChrName, 0 )
+	return v
+end
+function SetLastPickTime(userhandle, times)
+	local UserId = GetAccountNameUser(userhandle)
+	local ChrName = GetNameUser(userhandle)
+	DB_UpdateUserData( stype_jftime_last, times, nil, UserId, ChrName)
+end
+
+function AddOnlineTime(userhandle, AddTime)
+	local UserId = GetAccountNameUser(userhandle)
+	SetUserOnlineTime(UserId, AddTime)
+end

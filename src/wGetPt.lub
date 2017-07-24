@@ -1,0 +1,49 @@
+include("script/mylib.lua")
+include("script/apiPack.lua")
+include("script/linger.lua")
+
+g_targetMap = 28
+
+g_PointList =
+{
+	[0] = {npcid=2746, zone=g_targetMap,startpt = {x=750,y=1860}, endpt = {x=880,y=2040} , maxc=40},	
+	
+	[1] = {npcid=2747, zone=g_targetMap,startpt = {x=470,y=1970}, endpt = {x=530,y=2200} , maxc=20},	
+	[2] = {npcid=2840, zone=g_targetMap,startpt = {x=470,y=1970}, endpt = {x=530,y=2200} , maxc=40},	
+	
+	[3] = {npcid=2801, zone=g_targetMap,startpt = {x=1650,y=900}, endpt = {x=1570,y=1090} , maxc=2},	
+	[4] = {npcid=2840, zone=g_targetMap,startpt = {x=1650,y=900}, endpt = {x=1570,y=1090} , maxc=40},	
+	
+	[5] = {npcid=2826, zone=g_targetMap,startpt = {x=2000,y=980}, endpt = {x=2060,y=1160} , maxc=20},	
+	[6] = {npcid=2840, zone=g_targetMap,startpt = {x=2000,y=980}, endpt = {x=2060,y=1160} , maxc=40},	
+	
+	[7] = {npcid=2802, zone=g_targetMap,startpt = {x=1110,y=460}, endpt = {x=1170,y=640} , maxc=3},	
+	
+	[7] = {npcid=2716, zone=g_targetMap,startpt = {x=1130,y=890}, endpt = {x=960,y=1050} , maxc=10},
+	
+	[8] = {npcid=2711, zone=g_targetMap,startpt = {x=1160,y=1710}, endpt = {x=1050,y=1770} , maxc=10},
+	
+	[9] = {npcid=2725, zone=g_targetMap,startpt = {x=1000,y=550}, endpt = {x=1200,y=620} , maxc=2},
+	
+	[10] = {npcid=2711, zone=g_targetMap,startpt = {x=1200,y=580}, endpt = {x=1140,y=640} , maxc=10},
+}
+
+
+function OnLoad()
+	return 1
+end
+
+function OnStart()
+	local k,v
+	for k,v in pairs(g_PointList) do
+		local list = GetMapRandomePoint(v.zone, v.startpt, v.endpt, v.maxc)
+		local k,v1
+		for k,v1 in pairs(list) do
+			--LingerCreateNPC(npcid, zone, v.x, v.y, v.z, 0, 0, 7, 0, waittime, callback)
+			local text = v.npcid.."\t("..v1.x..","..v1.y..","..v1.z..")"
+			FileLog("E:/wPoint.txt", text)
+		end
+	end
+end
+
+

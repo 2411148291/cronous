@@ -1,0 +1,348 @@
+---------------------
+-- 科洛斯（夏）
+-- 增加进入门槛，原来是2个圣战士彩票，现在为3个
+
+---------------------
+include("script/mylib.lua")
+include("script/apiPack.lua")
+include("script/linger.lua")
+include("script/CommandAnalyze.lua")
+
+-- 目标地图
+g_targetMap = 28
+
+-- 允许的最大玩家数
+g_uMaxUser = 6
+g_uMinUser = 1
+
+-- 传送地图的坐标
+g_x = 1760
+g_y = 1850
+g_z = 9
+
+-- 定时器
+Timer_Heart = 139
+g_tHeartVal = 100*60
+
+-- 玩家记录
+g_xuserList = {}
+
+-- 玩家在线时长限制
+g_olTime = 120*60*1000  -- millsecond
+
+--[[外行服 (10天)5386 外行服 (30天)3497  韩服(30天)3499  韩服(10天)5387 必掉一件
+		    ±1冶炼石(组合)3344 +5% 祝福冶炼石(组合)2914  安全冶炼石(高级)2965 +20%魔法石(组合)8206 20% 魔法石(组合)装置8252 必掉一件
+			自由移动(10天) 自由移动(3天) 麻利的书(1天) 麻利的书(3天) 玛耶的书(10天) 玛耶的书(30天)  必掉一件
+		]]
+g_awardZH = {3344,2914,2965,8206,8252}
+g_awardFZ = {5386,3497,3499,5387,5385}
+g_awardYD = {8151,8103,3365,8153,8154}
+g_awardGA = {8188,8204,8395,8416,8449}
+		
+function OnLoad()
+	return 1
+end
+
+function OnStart()
+	SetTimer(Timer_Heart,g_tHeartVal)
+	SendServerMessage("传说中的科洛斯夏副本开启！", 0x00ff00)
+end
+
+function RecUser(userhandle)
+	local u = {}
+	u.userhandle = userhandle
+	u.UserId = GetAccountNameUser(userhandle) --玩家帐号
+	u.UserChr = GetNameUser(userhandle) --玩家角色名
+	u.curTime = GetTickCount()
+	table.insert(g_xuserList, u)
+end
+
+function SeaUser(userhandle)
+	local i = 1
+	local ChrN =  GetNameUser(userhandle) --玩家角色名
+
+	if g_xuserList ~= nil then
+        for i = #g_xuserList, 1, -1 do		
+			local u = g_xuserList[i]
+            if u.UserChr == ChrN then
+                if (GetTickCount() - u.curTime)  > g_olTime then
+					MoveZoneUser( u.userhandle, 0, 1740, 1940, 10, 0)
+					UserTalk(u.userhandle, "这次是时间到重进入的，要扣门票.")
+					table.remove( g_xuserList, i)	
+					return false
+				end
+				return true
+            end
+        end
+    end
+	
+	return false
+end
+
+function RemUser()
+	if g_xuserList ~= nil then
+		for i = #g_xuserList, 1, -1 do	
+			local u = g_xuserList[i]
+			if (GetTickCount() - u.curTime)  > g_olTime then
+				if GetZoneUser(u.userhandle) == g_targetMap then
+					table.remove( g_xuserList, i)		
+					MoveZoneUser( u.userhandle, 0, 1740, 1940, 10, 0)
+					UserTalk(u.userhandle, "你时间到，请重进.")		
+				end
+			end
+		end
+	end
+end
+
+function IsInUserList(UserChr)
+	if g_xuserList ~= nil then
+		for i = #g_xuserList, 1, -1 do	
+			local u = g_xuserList[i]
+			if u.UserChr == UserChr then
+				return true;
+			end
+		end
+	end 
+	
+	return false
+end
+
+function Check_User()
+	local userhandle = 0
+	local userName 
+	while 1 do 
+		userhandle = GetNextZoneUser(userhandle, g_targetMap)
+		if userhandle == 0 then 
+			break;
+		end
+		local UserChr = GetNameUser(userhandle)
+		
+		if IsInUserList(UserChr) == false then 
+			UserTalk(userhandle, "你通过非常途径进入，下次再范，扣积分！")
+			MoveZoneUser(userhandle, 0, 1740, 1940, 10, 0)
+		end		
+	end
+end
+
+-- 任务调度
+function OnTimer(TimerID)
+	if TimerID == Timer_Heart then
+		RemUser()
+		Check_User()
+	end
+end
+
+-- NPC死后延迟复活
+function OnDeadNPC(npchandle, attacker)
+	if g_isopen == false then
+		return;
+	end	
+
+	if attacker == nil or attacker == 0 or attacker == -1 then
+		return
+	end
+	
+	local record = {}
+	local x, y, z = 0
+	local npcid = GetCodeNPC(npchandle)
+	local zone  = GetZoneNPC(npchandle)	
+	x, y, z = GetPointNPC(npchandle)	
+	
+	if g_targetMap == GetZoneUser(attacker) then		
+		ExpRules(attacker)
+	end
+		
+	if npcid == 2801 or npcid == 2802 or npcid == 2725 then
+		randcnt1 = Random(1, 5)
+		randcnt2 = Random(1, 5)
+		randcnt3 = Random(1, 5)
+		randcnt4 = Random(1, 5)
+		CreateItem(g_awardZH[randcnt1], 1, g_targetMap, x, y, z, 0, attacker)
+		CreateItem(g_awardFZ[randcnt2], 1, g_targetMap, x, y, z, 0, attacker)
+		CreateItem(g_awardYD[randcnt3], 1, g_targetMap, x, y, z, 0, attacker)
+		CreateItem(g_awardGA[randcnt4], 1, g_targetMap, x, y, z, 0, attacker)		
+		local text = "掉落:"..GetAccountNameUser(attacker).."\t"..GetNameUser(attacker).."\t地图\t"..g_targetMap.."\tBOSS: "..npcid.."\t物品:"..g_awardZH[randcnt].."\t"..GetCurrentDateTime()	
+		FileLog("E:/SE_XiaNpc.txt", text)		
+	end
+end
+
+-- 玩家入口
+function OnCheckChat(userhandle, msg)
+	if msg == "/进入夏" then
+		if IsInAoyunGameZone(userhandle) then
+			UserTalk(userhandle, "你已经在该地图")
+			return false;			
+	    end
+	
+		if GetLevelUser(userhandle) < 80 then 
+			UserTalk(userhandle, "你级别太低，80级以上才能进入")
+			return 1;
+		end
+		if SeaUser(userhandle) == true then -- 玩家
+			UserTalk(userhandle, "成功重进.")
+			MoveZoneUser(userhandle, g_targetMap,g_x, g_y, g_z, 0)
+			return 1
+		end
+		if GetUserZoneCount(g_targetMap) == g_uMaxUser then 
+		    UserTalk(userhandle, "已经有"..g_uMaxUser.."人在科洛斯城，请等待")
+		    return 1;
+		end
+		
+		-- 判断进入条件
+		if GoToXiaPkZone(userhandle) == true then		
+			UserTalk(userhandle, "成功进入")
+		end 		
+		return 1;	
+	end
+end
+
+--========================进入条件判断函数========================================
+function IsInAoyunGameZone(userhandle)
+	local k,v
+	local zone = GetZoneUser(userhandle)	
+	if g_targetMap == zone then
+		return true
+	end
+	
+	return false
+end
+
+function GoToXiaPkZone(userhandle)	
+	if XiaCondition(userhandle) == true then
+		MoveZoneUser(userhandle, g_targetMap,g_x, g_y, g_z, 0)
+		RecUser(userhandle) -- 记录用户当前时间		
+		UserName = GetNameUser(userhandle)
+		SendServerMessage("欢迎:" ..UserName.. "进入科洛斯-夏地图...", 0x00ff00)
+		return true
+	end
+	
+	UserTalk(userhandle, "需要一 安全冶炼石(高级) 作为门票，才能进入！商城有卖")
+	
+	return false
+end
+
+-- 得到数据库里设置的条件
+function XiaCondition(userhandle) 
+	local list = GetCombine1("科洛斯夏副本入场卷") 
+	if list then
+		local k,v
+		for k, v in ipairs(list) do
+			return XiaCombineItem(userhandle, v)			
+		end
+	else
+		UserMsgBox(userhandle, "科洛斯夏入场卷设置错误")
+	end
+	
+	return false
+end
+
+function GetUserPackItemList2(userhandle)
+	local itemhandle = 0
+	local list = {}
+	while true do
+		itemhandle = GetNextItemHandle(userhandle, itemhandle)
+		if itemhandle == 0 then
+			break;
+		end
+		if IsItemInPacket(itemhandle) then
+			local info = {}
+			info.itemhandle = itemhandle
+			info.id = GetItemId(itemhandle)
+			info.amount = GetItemAmount(itemhandle)
+			table.insert(list, info)
+		end
+	end	
+	return list
+end
+
+function PopItemIdFromList2(list, itemid)
+	if itemid == nil or itemid == 0 then
+		return nil
+	end
+	local k,v
+	for k,v in pairs(list) do
+		if v.id == itemid then
+			table.remove(list, k)
+			return v.itemhandle;
+		end
+	end
+	return nil
+end
+	
+function XiaCombineItem(userhandle, v)
+	if v == nil then
+		return false
+	end
+	local itemlist = GetUserPackItemList2(userhandle)
+	local hItem1 = PopItemIdFromList2(itemlist, v.Item1)
+	local hItem2 = PopItemIdFromList2(itemlist, v.Item2)
+	local hItem3 = PopItemIdFromList2(itemlist, v.Item3)
+	local hItem4 = PopItemIdFromList2(itemlist, v.Item4)
+	local hItem5 = PopItemIdFromList2(itemlist, v.Item5)
+	local hItem6 = PopItemIdFromList2(itemlist, v.Item6)
+	
+	local HaveCombineItem = (v.Item1==nil or v.Item1==0 or hItem1~=nil) and 
+						(v.Item2==nil or v.Item2==0 or hItem2~=nil) and 
+						(v.Item3==nil or v.Item3==0 or hItem3~=nil) and 
+						(v.Item4==nil or v.Item4==0 or hItem4~=nil) and 
+						(v.Item5==nil or v.Item5==0 or hItem5~=nil) and 
+						(v.Item6==nil or v.Item6==0 or hItem6~=nil)
+	if not HaveCombineItem then
+		return false
+	end
+			
+	if hItem1 then DeleteItemEx(userhandle, hItem1) end
+	if hItem2 then DeleteItemEx(userhandle, hItem2) end
+	if hItem3 then DeleteItemEx(userhandle, hItem3) end
+	if hItem4 then DeleteItemEx(userhandle, hItem4) end
+	if hItem5 then DeleteItemEx(userhandle, hItem5) end
+	if hItem6 then DeleteItemEx(userhandle, hItem6) end
+	
+	return true
+end
+
+-- =========================　END　============================================
+
+function AddExpNow(userhandle,ExpPer)
+	local UserLevel = GetLevelUser(userhandle) --获取玩家角色等级
+	--local UserIsMaster = IsMaster(userhandle) --获取玩家角色是否为导师
+	
+	local UpLevelReqExp=GetGameExp(UserLevel,true)  --获取游戏本级所需的经验
+	local ThisLevelBaseExp=GetGameExp(UserLevel-1,true)  --获取游戏上一级级所需的经验
+	if UpLevelReqExp == 0 or ThisLevelBaseExp == 0 then
+		Print(userhandle, 28, MSGTYPE_MESSAGEBOX,"未知错误，请与客服联系！")
+		return
+	end
+	local RateExpValue = (UpLevelReqExp - ThisLevelBaseExp) --计算公式 计算出1%的经验值
+	
+	AddExpUser(userhandle, RateExpValue * ExpPer * 0.01) --给玩家增加10%经验
+end
+				
+function ExpRules(userhandle)
+	local UserLevel = GetLevelUser(userhandle) --获取玩家角色等级
+
+	if (UserLevel >= 80 and UserLevel <= 99)  then --条件符合，进入处理
+		AddExpNow(userhandle,0.05)
+		return
+	end
+	
+	if (UserLevel >=100 and UserLevel <= 114)  then --条件符合，进入处理
+		AddExpNow(userhandle,0.04)
+		return
+	end
+	
+	if (UserLevel >=115 and UserLevel <= 119)  then --条件符合，进入处理
+		AddExpNow(userhandle,0.03)
+		return
+	end			
+	
+	if (UserLevel >=120 and UserLevel <= 123)  then --条件符合，进入处理
+		AddExpNow(userhandle,0.02)
+		return
+	end			
+	
+	if (UserLevel >=124 and UserLevel < 125)  then --条件符合，进入处理
+		AddExpNow(userhandle,0.01)
+		return
+	end				
+end

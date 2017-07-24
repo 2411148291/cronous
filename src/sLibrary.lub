@@ -1,0 +1,609 @@
+
+g_jList = {8904,8919,8934,8949,8964} 
+g_dList = {8829,8844,8859,8874,8889}
+g_lList = {8754,8769,8784,8799,8814}
+g_tList = {3910,3925,3940,8979,8994}
+g_cList = {6001,6101,6201,6301,6401,6501,6601,6701}
+g_gList = {8140,8201,8392,8412,8446} 
+
+ScriptVersion = 110
+Delay = 0
+thDelay = 400
+g_GetItemRate = 30
+ManesTime = {}
+ManesTime.year = 0
+ManesTime.month = 0
+ManesTime.day = 0
+ManesTime.hour = 0
+ManesTime.minute = 0
+ManesTime.second = 0
+function cPosition(_x, _y, _z, _dir)
+  local position = {}
+  position.x = _x
+  position.y = _y
+  position.z = _z
+  position.dir = _dir
+  function position:value()
+    return self.x, self.y, self.z, self.dir
+  end
+  return position
+end
+function cPool(_delay, _function, arg)
+  local pool = {}
+  pool.delay = _delay
+  pool.pfunction = _function
+  pool.arg = arg
+  function pool:OnTimer()
+    if 1 > self.delay then
+      DebugMessage("pool:OnTimer Error")
+      return 1
+    end
+    self.delay = self.delay - 1
+    if 0 == self.delay then
+      self.pfunction(unpack(self.arg))
+      return 1
+    end
+    return 0
+  end
+  return pool
+end
+function cDelay()
+  local delay = {}
+  delay.pool = {}
+  SetTimer(thDelay, 100)
+  function delay:Insert(_delay, _function, ...)
+    table.insert(self.pool, cPool(_delay, _function, arg))
+  end
+  function delay:OnTimer()
+    for i, v in ipairs(self.pool) do
+      if self.pool[i]:OnTimer() == 1 then
+        table.remove(self.pool, i)
+      end
+    end
+  end
+  function delay:Destroy()
+    KillTimer(thDelay)
+  end
+  return delay
+end
+doorman = {}
+doorman.handle = 0
+doorman.id = 205
+doorman.reaction = 54
+doorman.position = cPosition(281, 561, 9, 270)
+doorman.officeHour = 3
+doorman.restHour = 9
+doorman.remainHour = 0
+doorman.state = 0
+doorman.waiter = {}
+ds_rest = 0
+ds_work = 1
+dt_hello = "\207\214\212\218\191\170\202\188\191\201\210\212\200\235\179\161. "
+dt_rest = "\207\214\212\218\191\170\202\188\206\222\183\168\200\235\179\161."
+dt_rest1 = "\196\191\199\176\206\222\183\168\200\235\179\161 "
+dt_rest2 = "\183\214\214\211\186\243\191\201\210\212\200\235\179\161."
+thDoorman = 200
+library = {}
+library.Tick = 30000
+library.position = cPosition(285, 112, 0, 225)
+thSendCount = 300
+thRefill = 301
+thTransmit = 302
+stage = {}
+stage.zone = {}
+stage.count = {}
+stage.maxcount = {}
+stage.refillcount = {}
+stage.maxcount[1] = 100
+stage.maxcount[2] = 200
+stage.maxcount[3] = 200
+stage.maxcount[4] = 250
+stage.maxcount[5] = 300
+stage.maxcount[6] = 350
+stage.maxcount[7] = 400
+stage.maxcount[8] = 400
+stage.maxcount[9] = 400
+stage.maxcount[10] = 100
+stage.maxcount[11] = 400
+stage.maxcount[12] = 400
+stage.maxcount[13] = 400
+stage.maxcount[14] = 400
+stage.maxcount[15] = 400
+stage.maxcount[16] = 400
+stage.maxcount[17] = 400
+stage.maxcount[18] = 400
+stage.maxcount[19] = 400
+stage.maxcount[20] = 200
+stage.maxcount[21] = 200
+stage.maxcount[22] = 200
+stage.maxcount[23] = 200
+stage.maxcount[24] = 200
+stage.maxcount[25] = 200
+stage.maxcount[26] = 200
+stage.maxcount[27] = 200
+stage.maxcount[28] = 200
+stage.maxcount[29] = 200
+stage.refillcount[1] = 111111160
+stage.refillcount[2] = 60
+stage.refillcount[3] = 60
+stage.refillcount[4] = 60
+stage.refillcount[5] = 60
+stage.refillcount[6] = 50
+stage.refillcount[7] = 50
+stage.refillcount[8] = 50
+stage.refillcount[9] = 50
+stage.refillcount[10] = 61111110
+stage.refillcount[11] = 40
+stage.refillcount[12] = 40
+stage.refillcount[13] = 40
+stage.refillcount[14] = 30
+stage.refillcount[15] = 30
+stage.refillcount[16] = 30
+stage.refillcount[17] = 20
+stage.refillcount[18] = 20
+stage.refillcount[19] = 20
+stage.refillcount[20] = 11111120
+stage.refillcount[21] = 10
+stage.refillcount[22] = 10
+stage.refillcount[23] = 10
+stage.refillcount[24] = 10
+stage.refillcount[25] = 10
+stage.refillcount[26] = 10
+stage.refillcount[27] = 20
+stage.refillcount[28] = 20
+stage.refillcount[29] = 20
+warp = {}
+warp.zone = {}
+warp.delay = {}
+bosshi = {}
+bosshi.handle = {}
+bosshi.id = 2723
+boss = {}
+boss.handle = {}
+boss.id = {2723, 2724}
+boss.position = cPosition(281, 403, -2000, 0)
+finalboss = {}
+finalboss.handle = 0
+finalboss.id = 2725
+bhit_hi1 = "\196\227\181\196\202\181\193\166\194\249\178\187\180\237\176\161..\190\211\200\187\191\201\210\212\192\180\181\189\213\226\192\239. "
+bhit_hi2 = "\196\227\195\199\180\185\203\192\213\245\212\250\181\196\209\249\215\211\204\171\191\201\176\174\193\203..\185\254\185\254"
+bhit_hi3 = "\202\181\193\166\214\181\181\195\191\228\189\177.."
+bhit_hi4 = "\206\210\187\225\212\218\186\218\176\181\181\196\190\161\205\183\181\200\180\253\215\197\196\227."
+b2t_dead1 = "\207\214\212\218\191\201\210\212\183\197\208\196\193\203,\196\227\210\209\190\173\181\189\180\239\214\213\181\227\193\203."
+b2t_dead2 = "\185\251\213\230\200\231\180\203\194\240?\213\230\207\235\191\180\191\180\196\227\183\162\182\182\181\196\209\249\215\211,\185\254\185\254\185\254. "
+fbt_dead = "\184\195\203\192\181\196!! \213\226\192\239\210\178\205\234\193\203! \203\217\203\217\205\203\207\194!"
+function OnLoad(arg)
+  return 1
+end
+function OnStart()
+  library:Init()
+  doorman:Init()
+  Delay = cDelay()
+  DebugMessage("sLibrary Now Start {1}", ScriptVersion)
+end
+function OnDestroy()
+  Delay:Destroy()
+  library:Destroy()
+  doorman:Destroy()
+end
+function OnTimer(_TimerID)
+  if thDelay == _TimerID then
+    Delay:OnTimer()
+  elseif doorman.id == _TimerID then
+    doorman:ChangeState()
+  elseif thSendCount == _TimerID then
+    library:SendCountUser()
+  elseif thRefill == _TimerID then
+    library:refill()
+  elseif thTransmit == _TimerID then
+    library:Transmit()
+  end
+end
+manes1 = {}
+manes2 = {}
+final = {}
+function OnCommand(arg)
+  if arg == "refill" then
+    library:refill()
+  elseif arg == "boss1" then
+    if boss.handle[1] == 0 then
+      boss.handle[1] = CreateNPC(boss.id[1], stage.zone[30], boss.position:value())
+    end
+  elseif arg == "boss2" then
+    if boss.handle[2] == 0 then
+      boss.handle[2] = CreateNPC(boss.id[2], stage.zone[30], boss.position:value())
+    end
+  elseif arg == "finalboss" then
+    if finalboss.handle == 0 then
+      finalboss.handle = CreateNPC(finalboss.id, stage.zone[31], boss.position:value())
+    end
+  elseif arg == "test" then
+    for i = 1, 29 do
+      stage.count[i] = stage.count[i] / 10
+      stage.maxcount[i] = stage.maxcount[i] / 10
+    end
+  elseif arg == "go" then
+    doorman.state = ds_rest
+    doorman.remainHour = 0
+    doorman:ChangeState()
+  elseif arg == "regentime" then
+    DebugMessage("Manes RegenTime = {1}-{2}-{3} {4}:{5}:{6}", ManesTime.year, ManesTime.month, ManesTime.day, ManesTime.hour, ManesTime.minute, ManesTime.second)
+  elseif arg == "bossstate" then
+    DebugMessage("Boss1 : {1}, Boss2 : {2}, FinalBoss : {3}", boss.handle[1], boss.handle[2], finalboss.handle)
+  elseif arg == "bossposition" then
+    if boss.handle[1] ~= 0 then
+      manes1[1], manes1[2], manes1[3] = GetPointNPC(boss.handle[1])
+    else
+      manes1[1] = 0
+      manes1[2] = 0
+      manes1[3] = 0
+    end
+    if boss.handle[2] ~= 0 then
+      manes2[1], manes2[2], manes2[3] = GetPointNPC(boss.handle[2])
+    else
+      manes2[1] = 0
+      manes2[2] = 0
+      manes2[3] = 0
+    end
+    if finalboss.handle ~= 0 then
+      final[1], final[2], final[3] = GetPointNPC(finalboss.handle)
+    else
+      final[1] = 0
+      final[2] = 0
+      final[3] = 0
+    end
+    DebugMessage("Boss1 : {1},{2},{3}", manes1[1], manes1[2], manes1[3])
+    DebugMessage("Boss2 : {1},{2},{3}", manes2[1], manes2[2], manes2[3])
+    DebugMessage("Final : {1},{2},{3}", final[1], final[2], final[3])
+  end
+end
+function library:Init()
+  for i = 1, 31 do
+    stage.zone[i] = 60 + i
+    stage.count[i] = stage.maxcount[i]
+  end
+  stage.zone[32] = stage.zone[1]
+  boss.handle[1] = 0
+  boss.handle[2] = 0
+  finalboss.handle = 0
+  SetTimer(thSendCount, 100)
+  SetTimer(thRefill, library.Tick)
+  SetTimer(thTransmit, 100)
+end
+function library:SendCountUser()
+  local userhandle = 0
+  for i = 2, 29 do
+    if i ~= 10 and i ~= 20 then
+      while true do
+        userhandle = GetNextZoneUser(userhandle, stage.zone[i])
+        if 0 == userhandle then
+          break
+        end
+        SendEventUser(userhandle, NOTICE_EVENT, NOTICE_EVENT_COUNTON)
+        SendEventUser(userhandle, NOTICE_COUNT, stage.count[i])
+      end
+      if 1 > GetNPCZoneCount(stage.zone[i]) then
+        DebugMessage("library:SendCountUser({1})", stage.zone[i])
+        SetZoneRegen(stage.zone[i])
+      end
+    end
+  end
+end
+function library:refill()
+  local userhandle
+  for i = 2, 29 do
+    if i ~= 10 and i ~= 20 and 1 < stage.count[i] then
+      stage.count[i] = stage.count[i] + stage.refillcount[i]
+      while true do
+        userhandle = GetNextZoneUser(userhandle, stage.zone[i])
+        if 0 == userhandle then
+          break
+        end
+        ShowEffectTarget(231, 1, userhandle)
+      end
+      if stage.count[i] > stage.maxcount[i] then
+        stage.count[i] = stage.maxcount[i]
+      end
+    end
+  end
+end
+function OnDeadNPC(_npchandle, _attacker)
+  local userhandle = 0
+  local npchandle = 0
+  local zone = GetZoneNPC(_npchandle)
+  local randcnt = 0
+  for i = 2, 29 do
+    if stage.zone[i] == zone then
+      if 1 > stage.count[i] then
+        break
+      end
+      stage.count[i] = stage.count[i] - 1
+      if 1 > stage.count[i] then
+        table.insert(warp.zone, i)
+        table.insert(warp.delay, 20)
+        while true do
+          userhandle = GetNextZoneUser(userhandle, zone)
+          if 0 == userhandle then
+            break
+          end
+          ShowEffectTarget(229, 1, userhandle)
+          Print(userhandle, 47, MSGTYPE_EVENT)
+        end
+        SetZoneMode(zone, ZF_NOREGEN)
+        OutOfNpcInZone(zone, 0)
+        if stage.zone[19] == zone then
+          bosshi = CreateNPC(boss.id[1], stage.zone[19], boss.position:value())
+          Delay:Insert(3, SayNPC, bosshi, bhit_hi1)
+          Delay:Insert(4, SayNPC, bosshi, bhit_hi2)
+          Delay:Insert(5, SayNPC, bosshi, bhit_hi3)
+          Delay:Insert(6, SayNPC, bosshi, bhit_hi4)
+          local npcid = 0
+          npcid = GetCodeNPC(bosshi)
+          if npcid == boss.id[1] then
+            Delay:Insert(10, DestroyNPC, bosshi)
+          end
+        end
+        if stage.zone[29] == zone then
+          DebugMessage("boss1 regen")
+          if 0 == boss.handle[1] and 0 == boss.handle[2] then
+            boss.handle[1] = CreateNPC(boss.id[1], stage.zone[30], boss.position:value())
+            ManesTime.year = GetDayTime(DDT_YEAR)
+            ManesTime.month = GetDayTime(DDT_MONTH)
+            ManesTime.day = GetDayTime(DDT_DAY)
+            ManesTime.hour = GetDayTime(DDT_HOUR)
+            ManesTime.minute = GetDayTime(DDT_MINUTE)
+            ManesTime.second = GetDayTime(DDT_SECOND)
+          end
+        end
+        return 0
+      end
+    end
+  end
+  if boss.handle[1] == _npchandle then
+    DebugMessage("boss1 die")
+    boss.handle[1] = 0
+    boss.handle[2] = CreateNPC(boss.id[2], stage.zone[30], boss.position:value())
+  elseif boss.handle[2] == _npchandle then
+    DebugMessage("boss2 die")
+    SayUser(_attacker, b2t_dead1)
+    SayNPC(boss.handle[2], b2t_dead2)
+    boss.handle[2] = 0
+    while true do
+      DebugMessage("boss2 die2")
+      userhandle = GetNextZoneUser(userhandle, stage.zone[30])
+      if 0 == userhandle then
+        break
+      end
+      DebugMessage("boss2 die3")
+      Delay:Insert(1, SendEventUser, userhandle, NOTICE_CONTROL, NOTICE_ZONE_EARTHQUAKE)
+      Delay:Insert(2, SendEventUser, userhandle, NOTICE_CONTROL, NOTICE_ZONE_EARTHQUAKE)
+      Delay:Insert(3, SendEventUser, userhandle, NOTICE_CONTROL, NOTICE_ZONE_EARTHQUAKE)
+      Delay:Insert(4, SendEventUser, userhandle, NOTICE_CONTROL, NOTICE_ZONE_EARTHQUAKE)
+      Delay:Insert(5, SendEventUser, userhandle, NOTICE_CONTROL, NOTICE_ZONE_EARTHQUAKE)
+      Delay:Insert(6, SendEventUser, userhandle, NOTICE_CONTROL, NOTICE_ZONE_EARTHQUAKE)
+      Delay:Insert(7, SendEventUser, userhandle, NOTICE_CONTROL, NOTICE_ZONE_EARTHQUAKE)
+      Delay:Insert(8, SendEventUser, userhandle, NOTICE_CONTROL, NOTICE_ZONE_EARTHQUAKE)
+      Delay:Insert(9, SendEventUser, userhandle, NOTICE_CONTROL, NOTICE_ZONE_EARTHQUAKE)
+      Delay:Insert(10, SendEventUser, userhandle, NOTICE_CONTROL, NOTICE_ZONE_EARTHQUAKE)
+      Print(userhandle, 48, MSGTYPE_EVENT, 3)
+    end
+    SetZoneMode(stage.zone[30], ZF_NOREGEN)
+    OutOfNpcInZone(stage.zone[30], 0)
+    Delay:Insert(190, SetZoneMode, stage.zone[30], 0)
+    Delay:Insert(190, SetZoneRegen, stage.zone[30])
+    --[[Delay:Insert(1, CreateItem, 2619, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(1, CreateItem, 2667, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(1, CreateItem, 2634, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(1, CreateItem, 2601, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(2, CreateItem, 2649, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(2, CreateItem, 79, 60, stage.zone[30], boss.position:value())
+    Delay:Insert(2, CreateItem, 8031, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(2, CreateItem, 2761, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(3, CreateItem, 2701, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(3, CreateItem, 2006, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(3, CreateItem, 2007, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(3, CreateItem, 8050, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(4, CreateItem, 8051, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(4, CreateItem, 2699, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(4, CreateItem, 2911, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(4, CreateItem, 2913, 1, stage.zone[30], boss.position:value())]]
+	Delay:Insert(1, CreateItem, 2965, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(1, CreateItem, 8151, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(1, CreateItem, 8153, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(1, CreateItem, 3362, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(2, CreateItem, 8108, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(2, CreateItem, 8210, 2, stage.zone[30], boss.position:value())
+    Delay:Insert(2, CreateItem, 2699, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(2, CreateItem, 2700, 1, stage.zone[30], boss.position:value())
+	Delay:Insert(3, CreateItem, 3959, 1, stage.zone[30], boss.position:value())
+    Delay:Insert(3, CreateItem, g_jList[Random(1,5)], 1, stage.zone[30], boss.position:value())
+	Delay:Insert(3, CreateItem, g_gList[Random(1,5)], 1, stage.zone[30], boss.position:value())
+	Delay:Insert(3, CreateItem, g_dList[Random(1,5)], 1, stage.zone[30], boss.position:value())
+    Delay:Insert(4, CreateItem, g_cList[Random(1,6)], 1, stage.zone[30], boss.position:value())
+    Delay:Insert(4, CreateItem, g_cList[Random(1,6)], 1, stage.zone[30], boss.position:value())
+    Delay:Insert(4, CreateItem, g_cList[Random(1,6)], 1, stage.zone[30], boss.position:value())
+	
+    if 0 == finalboss.handle then
+      finalboss.handle = CreateNPC(finalboss.id, stage.zone[31], boss.position:value())
+    end
+    table.insert(warp.zone, 30)
+    table.insert(warp.delay, 120)
+  elseif finalboss.handle == _npchandle then
+    DebugMessage("boss3 die")
+    SayNPC(finalboss.handle, fbt_dead)
+    finalboss.handle = 0
+    SetZoneMode(stage.zone[31], ZF_NOREGEN)
+    OutOfNpcInZone(stage.zone[31], 0)
+    Delay:Insert(190, SetZoneMode, stage.zone[31], 0)
+    Delay:Insert(190, SetZoneRegen, stage.zone[31])
+    --[[randcnt = Random(0, 99)
+    if randcnt < g_GetItemRate then
+      Delay:Insert(1, CreateItem, 3602, 1, stage.zone[31], boss.position:value())
+    end
+    Delay:Insert(1, CreateItem, 2390, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(1, CreateItem, 2530, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(1, CreateItem, 2603, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(2, CreateItem, 2575, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(2, CreateItem, 2605, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(2, CreateItem, 8031, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(2, CreateItem, 2761, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(3, CreateItem, 2701, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(3, CreateItem, 2006, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(3, CreateItem, 2007, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(3, CreateItem, 8050, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(4, CreateItem, 8051, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(4, CreateItem, 2699, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(4, CreateItem, 8103, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(4, CreateItem, 2912, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(5, CreateItem, 2914, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(5, CreateItem, 8104, 1, stage.zone[31], boss.position:value())]]
+	Delay:Insert(1, CreateItem, 2965, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(1, CreateItem, 8151, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(1, CreateItem, 8153, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(1, CreateItem, 3362, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(2, CreateItem, 8108, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(2, CreateItem, 8210, 2, stage.zone[31], boss.position:value())
+    Delay:Insert(2, CreateItem, 2699, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(2, CreateItem, 2700, 1, stage.zone[31], boss.position:value())	
+	Delay:Insert(3, CreateItem, 3959, 1, stage.zone[31], boss.position:value())
+    Delay:Insert(3, CreateItem, g_tList[Random(1,5)], 1, stage.zone[31], boss.position:value())
+	Delay:Insert(3, CreateItem, g_lList[Random(1,5)], 1, stage.zone[31], boss.position:value())
+	Delay:Insert(3, CreateItem, g_gList[Random(1,5)], 1, stage.zone[31], boss.position:value())
+    Delay:Insert(4, CreateItem, g_cList[Random(1,6)], 1, stage.zone[31], boss.position:value())
+    Delay:Insert(4, CreateItem, g_cList[Random(1,6)], 1, stage.zone[31], boss.position:value())
+    Delay:Insert(4, CreateItem, g_cList[Random(1,6)], 1, stage.zone[31], boss.position:value())
+	
+    table.insert(warp.zone, 31)
+    table.insert(warp.delay, 180)
+    while true do
+      userhandle = GetNextZoneUser(userhandle, stage.zone[31])
+      if 0 == userhandle then
+        break
+      end
+      Print(userhandle, 48, MSGTYPE_EVENT, 3)
+    end
+  end
+end
+function library:Transmit()
+  for i, zone in ipairs(warp.delay) do
+    DebugMessage("library:Transmit {1},{2}", warp.zone[i], warp.delay[i])
+    warp.delay[i] = warp.delay[i] - 1
+    if 0 == warp.delay[i] then
+      library:stageClear(warp.zone[i])
+      SetZoneMode(stage.zone[warp.zone[i]], 0)
+      SetZoneRegen(stage.zone[warp.zone[i]])
+      DebugMessage("library:Transmit {1}", stage.zone[warp.zone[i]])
+      table.remove(warp.zone, i)
+      table.remove(warp.delay, i)
+    end
+  end
+end
+function library:stageClear(_index)
+  local userhandle = 0
+  DebugMessage("library:stageClear {1}", stage.zone[_index])
+  while true do
+    userhandle = GetNextZoneUser(userhandle, stage.zone[_index])
+    if 0 == userhandle then
+      break
+    end
+    MoveZoneUser(userhandle, stage.zone[_index + 1], library.position:value())
+    SendEventUser(userhandle, NOTICE_EVENT, NOTICE_EVENT_COUNTOFF)
+  end
+  stage.count[_index] = stage.maxcount[_index]
+end
+function library:Destroy()
+  DebugMessage("library:Destroy()")
+  KillTimer(tsSendCount)
+  KillTimer(tsRefill)
+  KillTimer(thTransmit)
+  local npcid = 0
+  npcid = GetCodeNPC(boss.handle[1])
+  if boss.handle[1] ~= 0 and npcid == boss.id[1] then
+    DestroyNPC(boss.handle[1])
+    boss.handle[1] = 0
+  end
+  npcid = GetCodeNPC(boss.handle[2])
+  if boss.handle[2] ~= 0 and npcid == boss.id[2] then
+    DestroyNPC(boss.handle[2])
+    boss.handle[2] = 0
+  end
+  npcid = GetCodeNPC(finalboss.handle)
+  if finalboss.handle ~= 0 and npcid == finalboss.id then
+    DestroyNPC(finalboss.handle)
+    DebugMessage("finalboss.handle")
+    finalboss.handle = 0
+  end
+end
+function doorman:Init()
+  doorman.handle = CreateNPC(doorman.id, stage.zone[1], doorman.position.x, doorman.position.y, doorman.position.z, doorman.position.dir, 54)
+  doorman.state = ds_work
+  SetTimer(doorman.id, 6000)
+end
+function doorman:ChangeState()
+  if doorman.remainHour ~= 0 then
+    doorman.remainHour = doorman.remainHour - 1
+    return 0
+  end
+  if ds_rest == doorman.state then
+    doorman.state = ds_work
+    SayNPC(doorman.handle, dt_hello)
+    doorman.remainHour = doorman.officeHour
+    SetTimer(doorman.reaction, 300)
+  elseif ds_work == doorman.state then
+    doorman.state = ds_rest
+    doorman.remainHour = doorman.restHour
+    SayNPC(doorman.handle, dt_rest)
+    KillTimer(doorman.reaction)
+  end
+end
+function OnReaction(_reaction, _userhandle, _button)
+  local x, y, z
+  x, y, z = GetPointUser(_userhandle)
+  DebugMessage("{1} {2} {3}", x, y, z)
+  if doorman.reaction == _reaction and 2 == _button then
+    doorman:request(_userhandle)
+  elseif _reaction == doorman.reaction + 1 and 2 == _button then
+    ShowEffect(109, 1, GetZoneUser(_userhandle), x, y, z)
+    Delay:Insert(2, MoveZoneUser, _userhandle, stage.zone[11], library.position:value())
+  elseif _reaction == doorman.reaction + 2 and 2 == _button then
+    ShowEffect(109, 1, GetZoneUser(_userhandle), x, y, z)
+    Delay:Insert(2, MoveZoneUser, _userhandle, stage.zone[21], library.position:value())
+  end
+end
+function doorman:request(_userhandle)
+  local x, y, z
+  x, y, z = GetPointUser(_userhandle)
+  if ds_work == doorman.state then
+    ShowEffect(109, 1, GetZoneUser(_userhandle), x, y, z)
+    Delay:Insert(2, MoveZoneUser, _userhandle, stage.zone[2], library.position:value())
+  elseif ds_rest == doorman.state then
+    SayNPC(doorman.handle, dt_rest1 .. doorman.remainHour + 1 .. dt_rest2)
+  end
+end
+function doorman:Destroy()
+  local npcid = 0
+  npcid = GetCodeNPC(doorman.handle)
+  if npcid == doorman.id then
+    DestroyNPC(doorman.handle)
+    KillTimer(doorman.id)
+    doorman.handle = 0
+  end
+end
+function OnUseItem(_userhandle, _itemid, _prop)
+  if 8225 == _itemid then
+    if GetZoneUser(_userhandle) == 61 then
+      MoveZoneUser(_userhandle, stage.zone[10], library.position:value())
+      return 1
+    else
+      Print(_userhandle, 46, MSGTYPE_CHAT)
+    end
+  elseif 8226 == _itemid then
+    if GetZoneUser(_userhandle) == 61 then
+      MoveZoneUser(_userhandle, stage.zone[20], library.position:value())
+      return 1
+    else
+      Print(_userhandle, 46, MSGTYPE_CHAT)
+    end
+  end
+  return 0
+end

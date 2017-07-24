@@ -1,0 +1,33 @@
+include("script/mylib.lua")
+include("script/apiPack.lua")
+include("script/linger.lua")
+include("script/CommandAnalyze.lua")
+
+-- 目标地图
+g_targetMap = 29
+
+-- 传送地图的坐标
+g_x = 1760
+g_y = 1850
+g_z = 9
+
+function OnLoad()
+	return 1
+end
+
+function OnStart()
+	SendServerMessage("科洛斯冬开启,助你练级！使用命令 /进入冬", 0x00ff00)
+end
+
+-- 玩家入口
+function OnCheckChat(userhandle, msg)
+	if msg == "/进入冬" then
+		local UserIsMaster = IsMaster(userhandle) --获取玩家角色是否为导师
+		if UserIsMaster == 1 then
+			UserTalk(userhandle, "导师不能进入,谢谢合作!")
+			return
+		else
+			MoveZoneUser(userhandle, g_targetMap,g_x, g_y, g_z, 0)
+		end
+	end
+end

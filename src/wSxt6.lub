@@ -1,0 +1,485 @@
+-- 挑战双星塔
+-- 2017-06-01
+-- Thomas Wang
+--------------------------------------------------
+include("script/mylib.lua")
+include("script/apiPack.lua")
+
+TimerID_SXTTick = 456
+g_sbTimer = 1
+gStartMsgNum = 0
+g_towerBase = 201
+g_npcCount = 0
+g_hUser = nil
+Option_RefreshCount = 10
+g_moneyNeeded = 99
+g_awardList = {10,20,30,40,50,60,70,80,90,100}
+g_jfList = {2,4,6,8,10,12,14,16,18,20}
+
+-- 清除指定区的怪物NPC
+function clearZoneNpc(zone)
+	local npchandle = 0
+	local x, y, z
+
+	while 1 do
+		npchandle = GetNextZoneNPC(npchandle, zone)
+
+		if npchandle == 0 then
+			break;
+		end
+		x, y, z = GetPointNPC(npchandle)
+		DebugMessage("删除npc: "..GetCodeNPC(npchandle))
+		DebugMessage("x="..x..",y="..y..",z="..z)
+		KillNPC(npchandle)
+		DestroyNPC(npchandle)
+	end
+
+	return false
+end
+
+function AddPoint(userhandle,zone)
+	local index = zone - 200
+	local accname = GetAccountNameUser(userhandle)
+
+	-- 检查钱够不不够!
+	gamePoint = GetUserGamePoint(accname)
+
+	if gamePoint == nil then
+		InsertUserGamePoint(accname,g_awardList[index])
+		gamePoint = 0
+	else
+		SetUserGamePoint(accname,gamePoint+g_awardList[index])
+	end
+
+	--UserTalk(userhandle, "你获得 " .. g_awardList[index].. " 点卷奖励,余额 " ..(gamePoint+g_awardList[index]).." 点" )
+	UserTalk(userhandle, "你获得 " .. g_awardList[index].. " 点卷奖励,余额 " ..GetUserGamePoint(accname).." 点" )
+end
+
+function OnLoad()
+	-- 设置地图模式,清除怪物
+	for i=1,10 do
+		SetZoneMode(200 + i, ZF_NOBITMAP)
+	end
+
+	return 1
+end
+
+function IsTicket(userhandle)
+	local accname = GetAccountNameUser(userhandle)
+
+	-- 检查钱够不不够!
+	gamePoint = GetUserGamePoint(accname)
+	if gamePoint == nil or gamePoint<0 then
+		UserTalk(userhandle, "主人你没有钱哦，请补充弹药，再任性哈")
+		return false
+	end
+
+	if (g_moneyNeeded-gamePoint) > 0 then
+		UserTalk(userhandle, "主人你钱 "..gamePoint.. " 不够！需要 " .. g_moneyNeeded.. " 点")
+		return false
+	end
+
+	SetUserGamePoint(accname,gamePoint-g_moneyNeeded)
+	UserTalk(userhandle, "扣除 " .. g_moneyNeeded.. " 点,余额 " ..(gamePoint-g_moneyNeeded).." 点" )
+
+	return true
+end
+
+function OnStart()
+	DebugMessage("[挑战双星塔]测试开启")
+
+end
+
+function OnDestroy()
+	for i=1,10 do
+		clearZoneNpc(200 + i)
+	end
+	KillTimer(1766)
+	KillTimer(1798)
+	KillTimer(1799)
+	gStartMsgNum = 0
+	DebugMessage("[挑战双星塔]测试结束")
+end
+
+function GetMapName(MapId)
+	if MapId == 201 then
+		return "双星塔1层"
+	elseif MapId == 202 then
+		return "双星塔2层"
+	elseif MapId == 203 then
+		return "双星塔3层"
+	elseif MapId == 204 then
+		return "双星塔4层"
+	elseif MapId == 205 then
+		return "双星塔5层"
+	elseif MapId == 206 then
+		return "双星塔6层"
+	elseif MapId == 207 then
+		return "双星塔7层"
+	elseif MapId == 208 then
+		return "双星塔8层"
+	elseif MapId == 209 then
+		return "双星塔9层"
+	elseif MapId == 210 then
+		return "双星塔10层"
+	else
+		return ""
+	end
+end
+
+function RemainBossAlredyCreate(ZoneList)
+	local text,k,v,count
+	text = "锁妖塔BB已在"
+	count = GetArrayCount(ZoneList)
+	local i = 1
+	for k, v in pairs(ZoneList) do
+		text = text .. GetMapName(v)
+		if i ~= count then
+			text = text .. "、"
+		end
+	end
+	text = text .. "咆哮!"
+	SendServerMessage(text, 0x00ff00)
+end
+
+-- 刷新npc
+function RefreshNpc(list)
+	local k,v
+	local kill_list = {}
+	local reserve_list = {}
+	g_npcCount = 0
+
+	-- 删除旧npc(保留被攻击npc)
+	for k, v in pairs(list) do
+		local npclist_boss = GetZoneNpcList(v.zone, v.BossId)
+		if npclist_boss ~= nil then
+			local bk,boss_handle
+			for bk, boss_handle in pairs(npclist_boss) do
+				kill_list[boss_handle] = boss_handle
+				-- 删除附加小怪(仅在boss满血时清除)
+				local extern_key,extern_npcid
+				for extern_key, extern_npcid in pairs(v.ExternNpc) do
+					local npclist_extern = GetZoneNpcList(v.zone, extern_npcid)
+					if npclist_extern ~= nil then
+
+						local xk, x_handle
+						for xk, x_handle in pairs(npclist_extern) do
+							kill_list[x_handle] = x_handle
+							-- 不使用table.insert,可以过滤重复纪录
+						end
+					end
+				end
+			end
+		end
+	end
+	for k, v in pairs(kill_list) do
+		DestroyNPC(v)
+	end
+
+	local CreateList = GetRandomElement(list, Option_RefreshCount)
+	local CreateZoneList = {}
+	for k, v in pairs(CreateList) do
+		if v.zone == g_towerBase then
+			local bReserve
+			bReserve = false
+			local rk,rv
+			for rk, rv in pairs(reserve_list) do
+				if v.zone == rv.zone and v.BossId == rv.BossId then
+					bReserve = true
+					break;
+				end
+			end
+
+			if not bReserve then
+				local pt = GetOneRandomElementValue(v.PointList)
+				if pt.z == nil then
+					pt.z = -2000
+				end
+				table.insert(CreateZoneList, v.zone)
+				CreateNPC(v.BossId, v.zone, pt.x, pt.y, pt.z)
+				g_npcCount = g_npcCount + 1
+				if v.ExternNpc ~= nil then
+					local ec = GetArrayCount(v.ExternNpc)
+					local pk,pv
+					for pk,pv in pairs(v.PointList) do
+						local ek,ev
+						for ek, ev in pairs(v.ExternNpc) do
+							CreateNPC(ev, v.zone, pv.x + Random(-ec*4, ec*4), pv.y + Random(-ec*4, ec*4))
+							g_npcCount = g_npcCount + 1
+						end
+					end
+				end
+			end
+		end
+	end
+	RemainBossAlredyCreate(CreateZoneList)
+end
+
+--用来调试，打/SS立刻刷
+function OnCheckChat(userhandle, msg)
+	if msg == "/ss" then
+		RefreshNpc(g_BossTeamList)
+	end
+
+	if msg == "/tosxt" then
+		if g_hUser ~= nil then
+			UserTalk(userhandle, "有人正在挑战,请等待")
+			return
+		end
+
+		if not IsTicket(userhandle) then
+			return
+		end
+
+	    -- 防止再次进入时
+		g_towerBase = 201
+		g_npcCount = 0
+		clearZoneNpc(g_towerBase)
+		RefreshNpc(g_BossTeamList)
+		g_hUser = userhandle
+		UserTalk(g_hUser, "锁妖塔怪物汇集中,请等5秒")
+		SetTimer(TimerID_SXTTick, 600)
+	end
+
+	if msg == "/sover" then
+		for i=1,10 do
+			clearZoneNpc(200 + i)
+		end
+		KillTimer(1766)
+		KillTimer(1798)
+		KillTimer(1799)
+		gStartMsgNum = 0
+	end
+end
+
+-- 怪物之BOSS队伍的刷新列表
+-- ExternNpc = 小啰啰列表
+g_BossTeamList = {
+  { zone=201, BossId=2823, PointList={ {x=0440, y=0270}, {x=0280, y=0400}, {x=0410, y=0360} }, ExternNpc = { 2342,2343,2344,1524,2352,1712,1525,2351,1527,2353 } },
+  { zone=202, BossId=2903, PointList={ {x=0440, y=0270}, {x=0280, y=0400}, {x=0410, y=0360} }, ExternNpc = { 1528,1504,1711,2354.2910,2909,2897,2899,2893,1505 } },
+  { zone=203, BossId=2819, PointList={ {x=0440, y=0270}, {x=0280, y=0400}, {x=0410, y=0360} }, ExternNpc = { 1530,2417,2420,2418,2521,1532,2522,1534,2937,2419 } },
+  { zone=204, BossId=2823, PointList={ {x=0440, y=0270}, {x=0280, y=0400}, {x=0410, y=0360} }, ExternNpc = { 2523,2524,2908,2935,2900,2938,2934,1548,1402,2601 } },
+  { zone=205, BossId=2905, PointList={ {x=0440, y=0270}, {x=0280, y=0400}, {x=0410, y=0360} }, ExternNpc = { 2732,1539,2602,2510,2516,1502,2606,1506,2932,1111 } },
+  { zone=206, BossId=2903, PointList={ {x=0220, y=0200}, {x=0420, y=0350}, {x=0260, y=0410} }, ExternNpc = { 2511,2731,2605,2733,2603,1601,2919,2512,9000,2513 } },
+  { zone=207, BossId=2904, PointList={ {x=0420, y=0320}, {x=0320, y=0420}, {x=0340, y=0210} }, ExternNpc = { 2734,1535,1538,1531,1404,2931,1536,1405,1537,1545 } },
+  { zone=208, BossId=2905, PointList={ {x=0360, y=0190}, {x=0450, y=0320}, {x=0190, y=0330} }, ExternNpc = { 1547,1540,2604,2773,2769,2735,1406,1541,1544,1543 } },
+  { zone=209, BossId=2801, PointList={ {x=0290, y=0200}, {x=0310, y=0430}, {x=0430, y=0340} }, ExternNpc = { 2907,2736,1407,1510,1512,1514,2608,2514,2515,1409 } },
+  { zone=210, BossId=2725, PointList={ {x=0440, y=0190}, {x=0410, y=0420}, {x=0230, y=0430} }, ExternNpc = { 2714,2713,2706,2701,2702,1410,1513,1414,2763,2747 } }
+}
+
+--[[
+g_BossTeamList = {
+  { zone=201, BossId=1601, PointList={ {x=0380, y=0250}, {x=0260, y=0360}, {x=0380, y=0330} }, ExternNpc = { 2715,2704,2704,2704,2756,2756,2756,2756,2756,2756,2756,2756,2756,2756,2714,2714,2714,2714,2714 } },
+  { zone=202, BossId=1602, PointList={ {x=0380, y=0250}, {x=0260, y=0360}, {x=0380, y=0330} }, ExternNpc = { 2715,2714,2714,2714.2712,2712,2712,2712,2712,2756,2756,2756,2756,2756,2756,2756,2756,2756,2756 } },
+  { zone=203, BossId=1604, PointList={ {x=0380, y=0250}, {x=0260, y=0360}, {x=0380, y=0330} }, ExternNpc = { 2729,2729,2729,2729,2729,2741,2740,2740,2740,2740,2756,2756,2756,2756,2756,2756,2756,2756,2756,2756,2774,2774,2774,2774,2774,2774,2774,2774,2774,2774 } },
+  { zone=204, BossId=2801, PointList={ {x=0380, y=0250}, {x=0260, y=0360}, {x=0380, y=0330} }, ExternNpc = { 2768,2768,2768,2768,2768,2768,2768,2768,2768,2768,2767,2767,2767,2767,2744,2744,2744,2744,2744,2744,2756,2756,2756,2756,2756,2756,2756,2756,2756,2756,2774,2774,2774,2774,2774,2774,2774,2774,2774,2774 } },
+  { zone=205, BossId=2802, PointList={ {x=0380, y=0250}, {x=0260, y=0360}, {x=0380, y=0330} }, ExternNpc = { 2741,2741,2740,2740,2740,2740,2756,2756,2756,2756,2756,2756,2756,2756,2756,2756,2774,2774,2774,2774,2774,2774,2774,2774,2774,2774,2821,2821,2821,2821,2821,2821,2821,2821,2821,2821,2714,2714,2714,2714,2714 } },
+  { zone=206, BossId=2823, PointList={ {x=0380, y=0200}, {x=0260, y=0350}, {x=0260, y=0330} }, ExternNpc = { 2741,2741,2766,2766,2766,2766,2751,2751,2751,2745,2745,2745,2745,2745,2821,2821,2821,2821,2821,2821,2821,2821,2821,2821,2714,2714,2714,2714,2714 } },
+  { zone=207, BossId=2754, PointList={ {x=0380, y=0250}, {x=0260, y=0360}, {x=0380, y=0210} }, ExternNpc = { 2741,2741,2740,2740,2740,2740,2747,2747,2747,2747,2756,2756,2756,2756,2756,2756,2756,2756,2756,2756,2821,2821,2821,2821,2821,2821,2821,2821,2821,2821,2714,2714,2714,2714,2714} },
+  { zone=208, BossId=2724, PointList={ {x=0380, y=0250}, {x=0260, y=0360}, {x=0380, y=0330} }, ExternNpc = { 2741,2741,2750,2750,2750,2750,2761,2761,2761,2761,2774,2774,2774,2774,2774,2774,2774,2774,2774,2774,2821, 2821,2821,2821,2821,2821,2821,2821,2821,2821,2714,2714,2714,2714,2714,2933,2933,2933,2933,2933,2933,2933,2933,2933,2933} },
+  { zone=209, BossId=2725, PointList={ {x=0380, y=0250}, {x=0260, y=0360}, {x=0380, y=0330} }, ExternNpc = { 2741,2741,2728,2728,2728,2728,2750,2750,2750,2750,2728,2728,2728,2728,2821, 2821,2821,2821,2821,2821,2821,2821,2821,2821,2714,2714,2714,2714,2714,2930,2930,2930,2930,2930,2930,2930,2930,2930,2930 } },
+  { zone=210, BossId=2725, PointList={ {x=0380, y=0250}, {x=0260, y=0360}, {x=0380, y=0330} }, ExternNpc = { 2741,2741,2715,2715,2750,2750,2750,2750,2728,2728,2728,2728,2740,2740,2740,2740,2714,2714,2714,2714,2714,2826,2826,2826,2826,2826,2826,2826,2826,2826,2826 } }}]]
+
+-- 怪物掉落列表(可以设置小兵)
+
+-- zone = 地图号, NpcId = 怪物号, {item = 物品id, rate = 几率, 可选[count] = 单组叠加数}, MakeCount = 掉落件数, AddJf = 积分处理
+g_ItemList = {
+  { zone=201, NpcId=2823, ItemList={ {item=13923,rate=60/100},{item=13987,rate=65/100},{item=14051,rate=65/100} }, MakeCount=1, AddJf = true, AddPoint = true, Testament = true },
+  { zone=202, NpcId=2903, ItemList={ {item=13875,rate=65/100},{item=13939,rate=65/100},{item=14003,rate=65/100} }, MakeCount=1, AddJf = true, AddPoint = true, Testament = true },
+  { zone=203, NpcId=2801, ItemList={ {item=13907,rate=65/100},{item=13971,rate=65/100},{item=14035,rate=65/100} }, MakeCount=1, AddJf = true, AddPoint = true, Testament = true },
+  { zone=204, NpcId=2823, ItemList={ {item=13891,rate=65/100},{item=13955,rate=65/100},{item=14019,rate=65/100} }, MakeCount=1, AddJf = true, AddPoint = true, Testament = true },
+  { zone=205, NpcId=2905, ItemList={ {item=8136,rate=65/100}, {item=8198,rate=25/100} }, MakeCount=1, AddJf = true, AddPoint = true, Testament = true },
+  { zone=206, NpcId=2903, ItemList={ {item=8389,rate=70/100}, {item=8409,rate=20/100} }, MakeCount=1, AddJf = true, AddPoint = true, Testament = true },
+  { zone=207, NpcId=2904, ItemList={ {item=8443,rate=60/100}, {item=8198,rate=30/100} }, MakeCount=1, AddJf = true, AddPoint = true, Testament = true },
+  { zone=208, NpcId=2802, ItemList={ {item=8198,rate=50/100}, {item=8443,rate=60/100} }, MakeCount=1, AddJf = false, AddPoint = true, Testament = true },
+  { zone=209, NpcId=2905, ItemList={ {item=13955,rate=60/100}, {item=8443,rate=30/100} }, MakeCount=1, AddJf = true, AddPoint = true,  Testament = true },
+  { zone=210, NpcId=2801, ItemList={ {item=8389,rate=60/100}, {item=8409,rate=30/100} }, MakeCount=1, AddJf = true, AddPoint = true,  Testament = true },
+}
+
+function OnTimer(TimerID)
+	if TimerID == TimerID_SXTTick then
+		MoveZoneUser(g_hUser, 201, 300, 300, 10, 0)
+		KillTimer(TimerID_SXTTick)
+		SetTimer(1798, (g_sbTimer-0.5)*60*100)
+		SetTimer(1766, 800)
+	elseif TimerID == 1798 then
+		KillTimer(1766)
+		KillTimer(1798)
+		SetTimer(1799,1000)
+	elseif TimerID == 1799 then
+		if gStartMsgNum == 0 then
+			SendMent("还剩30秒,还有"..g_npcCount.."支怪,加油")
+		elseif gStartMsgNum == 1 then
+			SendMent("还剩20秒,还有"..g_npcCount.."支怪,加油")
+		elseif gStartMsgNum == 2 then
+			SendMent("还剩10秒,还有"..g_npcCount.."支怪,加油")
+		elseif gStartMsgNum == 3 then
+			KillTimer(1799)
+			gStartMsgNum = 0
+
+			if g_npcCount > 3 then
+				local userhandle = 0
+				while 1 do
+					userhandle = GetNextZoneUser(userhandle, g_towerBase)
+					if userhandle == 0 then
+						break;
+					end
+					MoveZoneUser(userhandle, 0, 1767, 2012, 10, 0)
+				end
+
+				clearZoneNpc(g_towerBase)
+
+			        -- 重置状态
+				initZone()
+				SendMent("在限定时间内未消灭所有怪,挑战失败!")
+			else
+				g_towerBase = g_towerBase + 1
+				g_npcCount = 0
+				if g_towerBase ~= 211 then
+					local userhandle = 0
+					RefreshNpc(g_BossTeamList)
+					while 1 do
+						userhandle = GetNextZoneUser(userhandle, g_towerBase-1)
+						if userhandle == 0 then
+							break;
+						end
+						MoveZoneUser(userhandle, g_towerBase, 300, 300, 10, 0)
+						UserTalk(userhandle, "传送到"..GetMapName(g_towerBase))
+					end
+					SetTimer(1798, (g_sbTimer-0.5)*60*100)
+					SetTimer(1766, 800)
+				end
+			end
+			return
+		end
+
+		gStartMsgNum = gStartMsgNum + 1
+	elseif TimerID == 1766 then
+		SendMent("还有"..g_npcCount.."支怪,加油")
+	end
+end
+
+function initZone()
+	clearZoneNpc(g_towerBase)
+	-- 重置状态
+	
+	KillTimer(1766)
+	KillTimer(1798)
+	KillTimer(1799)
+	gStartMsgNum = 0
+	g_towerBase = 201
+	g_hUser = nil
+	g_npcCount = 0
+end
+
+-- npc遗言
+function NpcTestament (npchandle, attacker)
+	local r = Random(1, 6)
+	local NpcName = GetNameNPC(npchandle)
+	local UserName = GetNameUser(attacker)
+
+	if r == 1 then
+		SendServerMessage(NpcName.."大喊：死亡只是个开始，"..UserName.." 你要为此付出代价！", 0x00ff00)
+	elseif r == 2 then
+		SendServerMessage(NpcName.."大喊: 你们面对的不仅是我" .. NpcName .. "自己，还有我所号令的军团！", 0x00ff00)
+	elseif r == 3 then
+		SendServerMessage(NpcName.."大喊: 我们……好像……失败了呢……", 0x00ff00)
+	elseif r == 4 then
+		SendServerMessage(NpcName.."大喊: 也许，该是我落幕的时候了", 0x00ff00)
+	elseif r == 5 then
+		SendServerMessage(NpcName.."大喊: 杀了我一个，还有后来人", 0x00ff00)
+	elseif r == 6 then
+		SendServerMessage(UserName.."一脚踩在"..NpcName.."的尸体上,不禁感叹道: 我身在江湖,江湖里却没有我的传说。", 0x00ff00)
+	end
+end
+
+function OnPCDead(userhandle)
+	local zone = GetZoneUser(userhandle)
+	if zone == 201 or zone == 203 or zone == 205 or
+       zone == 202 or zone == 204 or zone == 206 or
+	   zone == 207 or zone == 208 or zone == 209 or
+	   zone == 210 then
+
+	   initZone()
+
+	   SendMent(GetNameUser(userhandle).."挑战失败")
+	end
+end
+
+function OnDeadNPC(npchandle, attacker)
+	if attacker == nil or attacker == 0 or attacker == -1 then
+		return
+	end
+	local npcid = GetCodeNPC(npchandle)
+	local zone = GetZoneNPC(npchandle)
+	local k,v
+
+	if g_towerBase == zone then
+		if g_npcCount >0 then
+			g_npcCount = g_npcCount -1
+		end
+	end
+
+	for k, v in pairs(g_ItemList) do
+		if v.zone == nil or v.zone == zone then
+			if v.NpcId == nil or v.NpcId == npcid then
+				local item_list = RandomMakerList(v.ItemList, "rate", v.MakeCount)
+				CreateItemList(item_list, npchandle, attacker, "item")
+				if v.AddJf then
+					DoUserAddJF(attacker, zone)
+				end
+				if v.AddPoint then
+					AddPoint(attacker, zone)
+				end
+				if v.Testament then
+					NpcTestament(npchandle, attacker)
+				end
+			end
+		end
+	end
+end
+
+--===================================================================================================
+--开始读入玩家好友列表处理
+function DoUserAddJF(hAttacker,zone)
+	DebugMessage("#DoUserAddJF")
+	local friendList = GetUserFriendList(GetChrKey(hAttacker))--玩家好友列表
+	local UserhandleList = {}
+	local FriendCount = 1
+	local k,v
+
+	--检查地图玩家，可能存在的好友
+	local userhandle = 0
+	while 1 do
+		userhandle = GetNextZoneUser(userhandle, zone)
+		if userhandle == 0 then
+			break;
+		end
+
+		for k, v in pairs(friendList) do
+			if GetNameUser(userhandle) == v then
+				FriendCount = FriendCount + 1
+				table.insert(UserhandleList,userhandle)
+			end
+		end
+	end
+	table.insert(UserhandleList,hAttacker)--添加玩家本人
+
+	--判断好友人数并加积分
+	local Rate = g_jfList[g_towerBase-200]
+	--[[if FriendCount >= 10 then
+		Rate = 3
+	elseif FriendCount >= 5 and FriendCount < 10 then
+		Rate = 2
+	else
+		Rate = 1
+	end
+	]]
+	
+	for k,v in pairs(UserhandleList) do
+		local UserId = GetAccountNameUser(v) --玩家帐号
+		local HotJF = GetUserHotJF(UserId) + Rate
+		SetUserHotJF(UserId,HotJF)
+		UserTalk(v, "斩杀BOSS成功!增加"..Rate.."屠魔积分!您累计屠魔积分为"..GetUserHotJF(UserId).."分!")
+	end
+end

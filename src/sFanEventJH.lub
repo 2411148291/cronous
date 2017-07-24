@@ -1,0 +1,331 @@
+include("script/mylib.lua")
+include("script/ApiPack.lua")
+include("script/CommandAnalyze.lua")
+
+ScriptVersion = 223
+sFanEvent = 101
+PlayTime = 360000 -- 1h
+ReadyTime = 360000 --1800000 -- 5h
+EventState = 0
+ES_Wait = 1
+ES_FirstNPCRegen = 2
+ES_SecondNPCRegen = 3
+EventTime = 0
+MatarielState = 0
+TyphonState = 0
+MataPos = {}
+MataPos.X = 0
+MataPos.Y = 0
+MataTime = {}
+MataTime.year = 0
+MataTime.month = 0
+MataTime.day = 0
+MataTime.hour = 0
+MataTime.minute = 0
+MataTime.second = 0
+TyphonTime = {}
+TyphonTime.year = 0
+TyphonTime.month = 0
+TyphonTime.day = 0
+TyphonTime.hour = 0
+TyphonTime.minute = 0
+TyphonTime.second = 0
+MataTime_e = {}
+MataTime_e.year = 0
+MataTime_e.month = 0
+MataTime_e.day = 0
+MataTime_e.hour = 0
+MataTime_e.minute = 0
+MataTime_e.second = 0
+TyphonTime_e = {}
+TyphonTime_e.year = 0
+TyphonTime_e.month = 0
+TyphonTime_e.day = 0
+TyphonTime_e.hour = 0
+TyphonTime_e.minute = 0
+TyphonTime_e.second = 0
+RegenArea = {}
+RegenArea.Total = 9
+RegenArea.Place = 0
+RegenArea.Zone = {53, 53, 53, 53, 53, 53, 53, 53, 53}
+RegenArea.X = {1540, 2840, 3700, 4570, 4450, 4270, 2800, 2660, 1950}
+RegenArea.Y = {500, 450, 600, 1230, 2430, 3900, 3790, 4480, 4680}
+RegenArea.Z = {}
+fMonster = {}
+fMonster.Total = 4
+fMonster.NPCCode = {2801, 1512, 2716, 2714}
+fMonster.NPCCount = {1, 10, 8, 10}
+fMonster.NPCRange = {0, 30, 50, 70}
+fMonster.NPCList = {}
+fMonster.Speech3 = "\191\169\177\226\188\173 \179\161\192\204 \190\198\180\207\180\217. \176\240 \180\217\189\195 \181\185\190\198\191\205 \179\202\200\241\181\233\191\161\176\212 \176\237\197\235\192\187 \190\203\183\193\193\217 \176\205\192\204\180\217!"
+sMonster = {}
+sMonster.Rate = 20
+sMonster.Total = 5
+sMonster.NPCCode = {2802, 2711, 2715, 2714, 2716}
+sMonster.NPCCount = {1, 5, 3, 5, 5}
+sMonster.NPCRange = {0, 50, 70, 90, 30}
+sMonster.NPCList = {}
+sMonster.Speech3 = "\192\185~ \193\182\177\221\184\184 \189\195\176\163\192\204 \192\214\190\250\190\238\181\181...\190\200\197\184\177\245\180\217. \199\207\193\246\184\184 \191\236\184\174\180\194 \176\240 \180\217\189\195 \184\184\179\175 \176\205\192\204\180\217~"
+fDropItem = {}
+fDropItem.Total = 24
+fDropItem.ItemCode = {6001, 6401, 6601, 6201, 6101, 6501, 6301, 6701, 8140, 8201, 8392, 8412, 8446, 5287, 5288, 5289, 5290, 5291, 2699, 2910, 2914, 2965, 2912}
+fDropItem.Rate = {5, 5, 5, 5, 5, 5, 5, 5, 52, 52, 52, 52, 52, 50, 50, 60, 60, 60, 60, 100, 100, 100, 100}
+fDropItem.Amount = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+--[[
+fDropItem.ItemCode = {6001, 6401, 6601, 6201, 6101, 6501, 6301, 6701, 2384, 2524, 2615, 2631, 2647, 2663, 8031, 8030, 2805, 2788, 2791, 2699, 2910, 2914, 2908, 2912}
+fDropItem.Rate = {5, 5, 5, 5, 5, 5, 5, 5, 10, 10, 10, 10, 10, 10, 50, 50, 60, 60, 60, 60, 100, 100, 100, 100}
+fDropItem.Amount = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+成长双剑,成长之剑 成长双杖 成长之杖 成长之弓，成长之爪 成长之锤 成长之拳 风暴胸甲 风暴护手 风暴战靴 风暴头盔 风暴护盾 风暴腰带2663 传说宝盒 真实宝盒 科洛斯的心脏 马赫特的痕迹2788 奥琪的戒指 七彩宝石 +3% 祝福冶炼石 (组合) +5% 祝福冶炼石 (组合) +3% 祝福冶炼石 (魔法) +5% 祝福冶炼石 (魔法)
+]]
+sDropItem = {}
+sDropItem.Total = 20
+sDropItem.ItemCode = {6001, 6401, 6601, 6201, 6101, 6501, 6301, 6701, 5287, 5288, 5289, 5290, 5291, 8144, 2699, 79, 8202, 8393, 8414, 8447}
+sDropItem.Rate = {5, 5, 5, 5, 5, 5, 5, 5, 10, 50, 60, 60, 60, 56, 60, 100, 56, 56, 56, 56}
+sDropItem.Amount = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 10, 1, 1, 1, 1}
+--[[
+sDropItem.ItemCode = {6001, 6401, 6601, 6201, 6101, 6501, 6301, 6701, 4279, 2784, 2804, 8025, 8026, 2803, 2699, 79, 2910, 2914, 2908, 2912}
+成长双剑,成长之剑 成长双杖 成长之杖 成长之弓，成长之爪 成长之锤 成长之拳 马塔俚曳儿护身符 马塔俚曳儿的血 灵魂落叶 武者宝盒 骸骨宝盒 娜卡的绳子 七彩宝石 全恢复万能药 +3% 祝福冶炼石 (组合) +5% 祝福冶炼石 (组合) +3% 祝福冶炼石 (魔法) +5% 祝福冶炼石 (魔法)
+sDropItem.Rate = {5, 5, 5, 5, 5, 5, 5, 5, 10, 50, 60, 60, 60, 60, 60, 100, 100, 100, 100, 100}
+sDropItem.Amount = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 10, 1, 1, 1, 1}
+]]
+OnLoad = function()
+  return 1
+end
+function OnStart()
+  DebugMessage("sFanEvent Now Start {1}", ScriptVersion)
+  EventState = ES_Wait
+  SetTimer(sFanEvent, ReadyTime)
+  OnTimer(sFanEvent)
+end
+function OnTimer(TimerID)
+  if TimerID == sFanEvent then
+    if ES_Wait == EventState then
+      DebugMessage("Event : Start")
+      RegenArea.Place = Random(1, RegenArea.Total)
+      fMonster.NPCList = CreateEventNPC(fMonster)
+      TyphonTime.year = GetDayTime(DDT_YEAR)
+      TyphonTime.month = GetDayTime(DDT_MONTH)
+      TyphonTime.day = GetDayTime(DDT_DAY)
+      TyphonTime.hour = GetDayTime(DDT_HOUR)
+      TyphonTime.minute = GetDayTime(DDT_MINUTE)
+      TyphonTime.second = GetDayTime(DDT_SECOND)
+      DebugMessage("Event : First Monster Regen {1}", RegenArea.Place)
+      EventState = ES_FirstNPCRegen
+      SetTimer(sFanEvent, PlayTime)
+      SetTimer(sFanEvent + 1, 200)
+    elseif ES_FirstNPCRegen == EventState then
+      DebugMessage("Event : Time Out")
+      SayNPC(fMonster.NPCList[1], fMonster.Speech3)
+      for i, handle in ipairs(fMonster.NPCList) do
+        DestroyNPC(handle)
+      end
+      MatarielState = 0
+      MataTime_e.year = GetDayTime(DDT_YEAR)
+      MataTime_e.month = GetDayTime(DDT_MONTH)
+      MataTime_e.day = GetDayTime(DDT_DAY)
+      MataTime_e.hour = GetDayTime(DDT_HOUR)
+      MataTime_e.minute = GetDayTime(DDT_MINUTE)
+      MataTime_e.second = GetDayTime(DDT_SECOND)
+      EventState = ES_Wait
+      MataPos.X = 0
+      MataPos.Y = 0
+      SetTimer(sFanEvent, ReadyTime)
+      DebugMessage("Event : End, Waiting Next EventTime")
+    elseif ES_SecondNPCRegen == EventState then
+      DebugMessage("Event : Time Out")
+      SayNPC(sMonster.NPCList[1], sMonster.Speech3)
+      for i, handle in ipairs(sMonster.NPCList) do
+        DestroyNPC(handle)
+      end
+      TyphonState = 0
+      TyphonTime_e.year = GetDayTime(DDT_YEAR)
+      TyphonTime_e.month = GetDayTime(DDT_MONTH)
+      TyphonTime_e.day = GetDayTime(DDT_DAY)
+      TyphonTime_e.hour = GetDayTime(DDT_HOUR)
+      TyphonTime_e.minute = GetDayTime(DDT_MINUTE)
+      TyphonTime_e.second = GetDayTime(DDT_SECOND)
+      EventState = ES_Wait
+      MataPos.X = 0
+      MataPos.Y = 0
+      SetTimer(sFanEvent, ReadyTime)
+      DebugMessage("Event : End, Waiting Next EventTime")
+    end
+  elseif TimerID == sFanEvent + 1 then
+    if ES_FirstNPCRegen == EventState then
+		local userhandle = 0
+		while true do
+			userhandle = GetNextZoneUser(userhandle, 53)
+			if 0 == userhandle then
+				break
+			end
+			Print(userhandle, 55, MSGTYPE_CHAT)
+		end
+    else
+        local userhandle = 0
+        while true do
+            userhandle = GetNextZoneUser(userhandle, 53)
+            if 0 == userhandle then
+                break
+            end
+            Print(userhandle, 56, MSGTYPE_CHAT)
+        end
+    end
+    KillTimer(sFanEvent + 1)
+  end
+end
+
+function OnDeadNPC(npchandle, attacker)
+  if ES_FirstNPCRegen == EventState then
+    if fMonster.NPCList[1] == npchandle then
+      for i, handle in ipairs(fMonster.NPCList) do
+        DestroyNPC(handle)
+      end
+      DebugMessage("Event : Call DropEventItem")
+      DropEventItem(fDropItem, attacker)
+      DebugMessage("Event : First Monster Die & Item Drop")
+      MatarielState = 1
+      MataTime_e.year = GetDayTime(DDT_YEAR)
+      MataTime_e.month = GetDayTime(DDT_MONTH)
+      MataTime_e.day = GetDayTime(DDT_DAY)
+      MataTime_e.hour = GetDayTime(DDT_HOUR)
+      MataTime_e.minute = GetDayTime(DDT_MINUTE)
+      MataTime_e.second = GetDayTime(DDT_SECOND)
+      local RegenRate = Random(1, 100)
+      if RegenRate > sMonster.Rate then
+        EventState = ES_Wait
+        MataPos.X = 0
+        MataPos.Y = 0
+        SetTimer(sFanEvent, ReadyTime)
+        DebugMessage("Event : End, Waiting Next EventTime")
+      else
+        sMonster.NPCList = CreateEventNPC(sMonster)
+        MataTime.year = GetDayTime(DDT_YEAR)
+        MataTime.month = GetDayTime(DDT_MONTH)
+        MataTime.day = GetDayTime(DDT_DAY)
+        MataTime.hour = GetDayTime(DDT_HOUR)
+        MataTime.minute = GetDayTime(DDT_MINUTE)
+        MataTime.second = GetDayTime(DDT_SECOND)
+        EventState = ES_SecondNPCRegen
+        SetTimer(sFanEvent, PlayTime)
+        SetTimer(sFanEvent + 1, 100)
+        DebugMessage("Event : Second Monster Regen")
+      end
+    end
+  elseif ES_SecondNPCRegen == EventState and sMonster.NPCList[1] == npchandle then
+    for i, handle in ipairs(sMonster.NPCList) do
+      DestroyNPC(handle)
+    end
+    DropEventItem(sDropItem, attacker)
+    DebugMessage("Event : Second Monster Die & Item Drop")
+    TyphonState = 1
+    TyphonTime_e.year = GetDayTime(DDT_YEAR)
+    TyphonTime_e.month = GetDayTime(DDT_MONTH)
+    TyphonTime_e.day = GetDayTime(DDT_DAY)
+    TyphonTime_e.hour = GetDayTime(DDT_HOUR)
+    TyphonTime_e.minute = GetDayTime(DDT_MINUTE)
+    TyphonTime_e.second = GetDayTime(DDT_SECOND)
+    EventState = ES_Wait
+    MataPos.X = 0
+    MataPos.Y = 0
+    SetTimer(sFanEvent, ReadyTime)
+    DebugMessage("Event : End, Waiting Next EventTime")
+  end
+end
+function DropEventItem(_ItemList, _attacker)
+  local RandomRate, Item_radius
+  local Place = RegenArea.Place
+  for i = 1, _ItemList.Total do
+    RandomRate = Random(1, 100)
+    if RandomRate < _ItemList.Rate[i] then
+      Item_radius = Random(0, 80)
+      CreateItem(_ItemList.ItemCode[i], _ItemList.Amount[i], RegenArea.Zone[Place], RegenArea.X[Place], RegenArea.Y[Place], RegenArea.Z[Place], Item_radius, _attacker)
+    end
+  end
+end
+function CreateEventNPC(_MonsterList)
+  local Monster = {}
+  Monster.angle = 0
+  Monster.territory = 0
+  Monster.x = 0
+  Monster.y = 0
+  local hNPCList = {}
+  local index = 0
+  for i = 1, _MonsterList.Total do
+    Monster.angle = Random(0, 360)
+    Monster.territory = 360 / _MonsterList.NPCCount[i]
+    for j = 1, _MonsterList.NPCCount[i] do
+      Monster.x, Monster.y = GetPoint(RegenArea.X[RegenArea.Place], RegenArea.Y[RegenArea.Place], _MonsterList.NPCRange[i], Monster.angle)
+      index = index + 1
+      hNPCList[index] = CreateNPC(_MonsterList.NPCCode[i], RegenArea.Zone[RegenArea.Place], Monster.x, Monster.y)
+      Monster.angle = (Monster.angle + Monster.territory) % 360
+    end
+  end
+  Monster.x, Monster.y, RegenArea.Z[RegenArea.Place] = GetPointNPC(hNPCList[1])
+  MataPos.X = Monster.x
+  MataPos.Y = Monster.y
+  DebugMessage("CreateEventNPC : {1} {2} {3}", GetPointNPC(hNPCList[1]))
+  SendServerMessage("魔王坐标 (: "..Monster.x/10..","..Monster.y/10..","..RegenArea.Z[RegenArea.Place]/10..") 附近产生", 0x00ff00)
+  return hNPCList
+end
+function GetPoint(_x, _y, _radius, _angle)
+  local angle = math.rad(_angle)
+  if 0 == _radius then
+    return _x, _y
+  else
+    return _x + _radius * math.cos(angle), _y + _radius * math.sin(angle)
+  end
+end
+function OnCommand(arg)
+  local i = 0
+  if "efversion" == arg then
+    DebugMessage("sFanEvent Version : {1}", ScriptVersion)
+  elseif "efstate" == arg then
+    DebugMessage("sFanEvent State = {1}, Position = {2}:{3}", EventState, MataPos.X, MataPos.Y)
+  elseif "efnext" == arg then
+    OnTimer(sFanEvent)
+  elseif "efbossstate" == arg then
+    DebugMessage("sFanEvent Matariel State = {1}, {2}-{3}-{4} {5}:{6}:{7}", MatarielState, MataTime.year, MataTime.month, MataTime.day, MataTime.hour, MataTime.minute, MataTime.second)
+    DebugMessage("sFanEvent Typhon State = {1}, {2}-{3}-{4} {5}:{6}:{7}", TyphonState, TyphonTime.year, TyphonTime.month, TyphonTime.day, TyphonTime.hour, TyphonTime.minute, TyphonTime.second)
+  elseif "efregentime" == arg then
+    DebugMessage("Typhon RegenTime = {1}-{2}-{3} {4}:{5}:{6}", TyphonTime.year, TyphonTime.month, TyphonTime.day, TyphonTime.hour, TyphonTime.minute, TyphonTime.second)
+    DebugMessage("Matariel RegenTime = {1}-{2}-{3} {4}:{5}:{6}", MataTime.year, MataTime.month, MataTime.day, MataTime.hour, MataTime.minute, MataTime.second)
+  elseif arg == "findboss" then
+	local npchandle = 0  
+	local data ={}
+	while 1 do 
+		npchandle = GetNextZoneNPC(npchandle, 53)
+		if npchandle == 0 then 
+			break;
+		end
+		local value = GetNameNPC(npchandle).."("..GetCodeNPC(npchandle)..")"
+		if not IsInList(value,data) then 
+			table.insert(data,GetNameNPC(npchandle).."("..GetCodeNPC(npchandle)..")")
+		end
+	end
+	
+	local outstr = ""
+	for k,v in ipairs(data) do  
+		outstr = outstr .. v ..","	
+	end	
+	DebugMessage("npcinfo："..outstr)
+  end
+end
+
+function IsInList(value, tbl)
+	for k,v in ipairs(tbl) do
+	   if v == value then
+		return true;
+	   end
+	end
+	return false;
+end
+
+function OnDestroy()
+  for i, handle in ipairs(fMonster.NPCList) do
+    DestroyNPC(handle)
+  end
+  for i, handle in ipairs(sMonster.NPCList) do
+    DestroyNPC(handle)
+  end
+  KillTimer(sFanEvent)
+end

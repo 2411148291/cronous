@@ -1,0 +1,353 @@
+-- 破碎风魔录
+-- 2010-01-20
+-- 庄东灿
+--------------------------------------------------
+Option_RefurbisCount = 5
+
+include("script/mylib.lua")
+include("script/apiPack.lua")
+
+TimerID_TimerTick = 123
+
+function OnLoad()
+	return 1
+end
+
+function OnStart()
+	DebugMessage("脚本[破碎风魔录]开启")
+	SetTimer(TimerID_TimerTick, 100)
+end
+
+function OnDestroy()
+	DebugMessage("脚本[破碎风魔录]结束")
+end
+
+
+function GetMapName(MapId)
+	if MapId == 51 then
+		return "伊特克丛林"
+	elseif MapId == 94 then
+		return "神秘湖"
+	elseif MapId == 95 then
+		return "火焰之河"
+	elseif MapId == 96 then
+		return "试炼之河"
+	elseif MapId == 43 then
+		return "灵隐村"
+	elseif MapId == 50 then
+		return "伊特克"
+	elseif MapId == 53 then
+		return "扇城"
+	elseif MapId == 23 then
+		return "邪恶城"
+	elseif MapId == 24 then
+		return "暗夜城"
+	elseif MapId == 25 then
+		return "荒芜地"
+	elseif MapId == 30 then
+		return "塔诺"
+	elseif MapId == 33 then
+		return "凯纳斯村"
+	elseif MapId == 41 then
+		return "乌诺斯城"
+	elseif MapId == 32 then
+		return "玛尔巴"
+	elseif MapId == 42 then
+		return "玛尔斯火山"
+	else
+		return ""
+	end
+end
+
+function RemainBossAlredyCreate(ZoneList)
+	local text,k,v,count
+	text = "有积分的BB已在"
+	count = GetArrayCount(ZoneList)
+	local i = 1
+	for k, v in pairs(ZoneList) do
+		text = text .. GetMapName(v)
+		if i ~= count then
+			text = text .. "、"
+		end
+	end
+	text = text .. "地图重生!"
+	SendServerMessage(text, 0x00ff00)
+end
+
+-- 刷新npc
+function RefurbishNpc(list)
+	local k,v
+	local kill_list = {}
+	local reserve_list = {}
+	
+	-- 删除旧npc(保留被攻击npc)
+	for k, v in pairs(list) do
+		local npclist_boss = GetZoneNpcList(v.zone, v.BossId)
+		if npclist_boss ~= nil then
+			local bk,boss_handle
+			for bk, boss_handle in pairs(npclist_boss) do			
+				--local HpPercent = GetPercentHPNPC(boss_handle)
+
+				--if HpPercent == 0 or HpPercent == 1000 then
+					kill_list[boss_handle] = boss_handle
+					-- 删除附加小怪(仅在boss满血时清除)
+					local extern_key,extern_npcid
+					for extern_key, extern_npcid in pairs(v.ExternNpc) do
+						local npclist_extern = GetZoneNpcList(v.zone, extern_npcid)
+						if npclist_extern ~= nil then
+					
+							local xk, x_handle
+							for xk, x_handle in pairs(npclist_extern) do
+								kill_list[x_handle] = x_handle
+								-- 不使用table.insert,可以过滤重复纪录
+							end
+						end
+					end
+				--else
+				--	local t = {}
+				--	t.zone = v.zone
+				--	t.BossId = v.BossId
+				--	table.insert(reserve_list, t)
+				--end
+			end
+		end
+	end
+	for k, v in pairs(kill_list) do
+		DestroyNPC(v)
+	end
+
+	local CreateList = GetRandomElement(list, Option_RefurbisCount)
+	local CreateZoneList = {}
+	for k, v in pairs(CreateList) do
+		local bReserve
+		bReserve = false
+		local rk,rv
+		for rk, rv in pairs(reserve_list) do
+			if v.zone == rv.zone and v.BossId == rv.BossId then
+				bReserve = true
+				break;
+			end
+		end
+
+		if not bReserve then
+			local pt = GetOneRandomElementValue(v.PointList)
+			if pt.z == nil then
+				pt.z = -2000
+			end
+			table.insert(CreateZoneList, v.zone)
+			CreateNPC(v.BossId, v.zone, pt.x, pt.y, pt.z)
+			if v.ExternNpc ~= nil then
+				local ek,ev
+				local ec = GetArrayCount(v.ExternNpc)
+				for ek, ev in pairs(v.ExternNpc) do
+					CreateNPC(ev, v.zone, pt.x + Random(-ec*12, ec*12), pt.y + Random(-ec*12, ec*12))
+				end
+			end
+		end
+	end
+	RemainBossAlredyCreate(CreateZoneList)
+end
+
+-- 提醒刷新
+function RemindRefurbishNpc()
+	SendServerMessage("被封印的魔王将于10分钟后解除封印！", 0x00ff00)
+end
+-- ExternNpc = 小啰啰列表
+
+g_BossTeamList = {
+  { zone=51, BossId=2823, PointList={ {x=0370, y=1240}, {x=1390, y=0400}, {x=3100, y=0950} }, ExternNpc = { 2762,2762,2762 } },
+  { zone=94, BossId=2903, PointList={ {x=1600, y=1570}, {x=2190, y=1170}, {x=1180, y=0840} }, ExternNpc = { 2762,2762,2762 } },
+  { zone=95, BossId=2801, PointList={ {x=2220, y=1960}, {x=1800, y=1240}, {x=2060, y=0420} }, ExternNpc = { 2762,2762,2762 } },
+  { zone=96, BossId=2823, PointList={ {x=1090, y=1030}, {x=1700, y=1700}, {x=2730, y=2830} }, ExternNpc = { 2762,2762,2762 } },
+  { zone=43, BossId=2905, PointList={ {x=1000, y=1000}, {x=3000, y=1830}, {x=0860, y=2740} }, ExternNpc = { 2762,2762,2762 } },
+  { zone=50, BossId=2903, PointList={ {x=2100, y=1000}, {x=1780, y=0550}, {x=0890, y=0580} }, ExternNpc = { 2762,2762,2762 } },
+  { zone=53, BossId=2904, PointList={ {x=3670, y=1790}, {x=3300, y=1020}, {x=1910, y=1730} }, ExternNpc = { 2762,2762,2762 } },
+  { zone=23, BossId=2905, PointList={ {x=0970, y=0140}, {x=0400, y=0360}, {x=0240, y=1070} }, ExternNpc = { 2762,2762,2762 } },
+  { zone=24, BossId=2801, PointList={ {x=1090, y=0130}, {x=0210, y=0120}, {x=0410, y=0660} }, ExternNpc = { 2762,2762,2762 } },
+  { zone=25, BossId=2904, PointList={ {x=3150, y=0890}, {x=2010, y=0710}, {x=1080, y=0810} }, ExternNpc = { 2762,2762,2762 } },
+  { zone=30, BossId=1603, PointList={ {x=1000, y=1000}, {x=3000, y=2000}, {x=0920, y=3320} }, ExternNpc = {} },
+  { zone=33, BossId=1603, PointList={ {x=0410, y=4560}, {x=0430, y=3170}, {x=0460, y=2320} }, ExternNpc = {} },
+  { zone=41, BossId=1603, PointList={ {x=1000, y=1000}, {x=2000, y=1900}, {x=1550, y=2600} }, ExternNpc = {} },
+  { zone=32, BossId=1603, PointList={ {x=2160, y=2260}, {x=1070, y=1980}, {x=1510, y=0950} }, ExternNpc = {} },
+  { zone=42, BossId=1603, PointList={ {x=1640, y=0660}, {x=1000, y=3000}, {x=1620, y=1930} }, ExternNpc = {} }
+}
+
+
+-- 怪物掉落列表(可以设置小兵)
+-- 暗黑的判王 2801: 掉落如下 夏天门票 一张。自由移动+7天 8151，妈耶的书7天 8153，攻击卷3天 3362 防御卷3天 8108，115+6散件一件(8140,8201,8392,8412,8446)。
+-- 97+11职业套随机一件(加 8904,8919,8934,8949,8964|雷 8754 8769 8784 8799 8814|泰 3910 3925 3940 8979 8994|毒 8829 8844 8859 8874 8889)。1级成长3把。骑士卷代码8051 。大红药水代码8239一组
+
+--马里塔伊尔掉落如下 ，夏天门票一张。自由移动3天 8103。攻击卷3362 防御卷3天 8108。97+11职业散件，1级成长3把，大蓝药水代码8240一组。七彩宝石1个 2699，超级工艺一个2700。
+
+-- 灵魂掉落如下，夏天门票一张 自由移动 书 7天。攻击  防御卷 3天，97+11散件1件，1级成长3把。七彩宝石，超级工艺。麻木石代码8210 ，2个。 
+
+-- 千出手掉落。 110+10孤傲领主散件(2919 4358 4374 4390 4406 8097)。七彩宝石2699，成长道具的警钟8242。1级成长+3.麻木石+1.超级工艺。狂暴水晶8032，憎恨水晶8033，斗争水晶8034。贪婪水晶8035。千出手的须2782。
+
+-- 施耐德 掉落。驶来的眼泪 2783，110+9孤傲领主散件(2918 4357 4373 4389 4405 8096)。七彩宝石，成长道具的警钟。1级成长+3.麻木石1.超级工艺。狂暴水晶，憎恨水晶，斗争水晶。贪婪水晶。
+
+-- zone = 地图号, NpcId = 怪物号, {item = 物品id, rate = 几率, 可选[count] = 单组叠加数}, MakeCount = 掉落件数, AddJf = 积分处理
+g_ItemList = {
+  { zone=95, NpcId=2801, ItemList={ {item=2965,rate=60/100}, {item=8151,rate=30/100},{item=8153,rate=20/100},{item=3362,rate=20/100},{item=8108,rate=20/100},{item=8140,rate=20/100},{item=8919,rate=20/100},{item=6201,rate=20/100},{item=8051,rate=20/100},{item=8239,rate=20/100} }, MakeCount=3, AddJf = true, Testament = true },
+  { zone=53, NpcId=2802, ItemList={ {item=2965,rate=50/100}, {item=8103,rate=20/100},{item=3362,rate=20/100},{item=8108,rate=20/100},{item=8904,rate=20/100},{item=6101,rate=20/100},{item=8240,rate=20/100},{item=2699,rate=20/100},{item=2700,rate=20/100} }, MakeCount=3, AddJf = false, Testament = true },
+  { zone=91, NpcId=2725, ItemList={ {item=2965,rate=60/100}, {item=8151,rate=30/100},{item=8153,rate=20/100},{item=3362,rate=20/100},{item=8108,rate=20/100},{item=8201,rate=20/100},{item=8934,rate=20/100},{item=6301,rate=20/100},{item=6001,rate=20/100},{item=6401,rate=20/100} }, MakeCount=4, AddJf = true, Testament = true },
+  { zone=22, NpcId=1602, ItemList={ {item=2699,rate=70/100}, {item=8242,rate=20/100},{item=6701,rate=20/100},{item=8210,rate=70/100}, {item=2700,rate=20/100},{item=8032,rate=20/100},{item=8033,rate=20/100}},{item=8034,rate=20/100}},{item=8035,rate=20/100}},{item=2782,rate=20/100} }, MakeCount=4, AddJf = false, Testament = true },
+  { zone=30, NpcId=1603, ItemList={ {item=2783,rate=70/100}, {item=2918,rate=20/100},{item=4357,rate=70/100}, {item=4373,rate=20/100}, {item=4389,rate=70/100}, {item=4405,rate=20/100},{item=8096,rate=70/100}, {item=8242,rate=20/100},{item=6501,rate=70/100}, {item=8210,rate=20/100},{item=8032,rate=20/100},{item=8033,rate=20/100}},{item=8034,rate=20/100}},{item=8035,rate=20/100}}, MakeCount=5, AddJf = true, Testament = true },
+  { zone=33, NpcId=1603, ItemList={ {item=2783,rate=70/100}, {item=2918,rate=20/100},{item=4357,rate=70/100}, {item=4373,rate=20/100}, {item=4389,rate=70/100}, {item=4405,rate=20/100},{item=8096,rate=70/100}, {item=8242,rate=20/100},{item=6501,rate=70/100}, {item=8210,rate=20/100},{item=8032,rate=20/100},{item=8033,rate=20/100}},{item=8034,rate=20/100}},{item=8035,rate=20/100}}, MakeCount=5, AddJf = true, Testament = true },
+  { zone=41, NpcId=1603, ItemList={ {item=2783,rate=70/100}, {item=2918,rate=20/100},{item=4357,rate=70/100}, {item=4373,rate=20/100}, {item=4389,rate=70/100}, {item=4405,rate=20/100},{item=8096,rate=70/100}, {item=8242,rate=20/100},{item=6501,rate=70/100}, {item=8210,rate=20/100},{item=8032,rate=20/100},{item=8033,rate=20/100}},{item=8034,rate=20/100}},{item=8035,rate=20/100}}, MakeCount=5, AddJf = true, Testament = true },
+  { zone=32, NpcId=1603, ItemList={ {item=2783,rate=70/100}, {item=2918,rate=20/100},{item=4357,rate=70/100}, {item=4373,rate=20/100}, {item=4389,rate=70/100}, {item=4405,rate=20/100},{item=8096,rate=70/100}, {item=8242,rate=20/100},{item=6501,rate=70/100}, {item=8210,rate=20/100},{item=8032,rate=20/100},{item=8033,rate=20/100}},{item=8034,rate=20/100}},{item=8035,rate=20/100}}, MakeCount=5, AddJf = true, Testament = true },
+  { zone=42, NpcId=1603, ItemList={ {item=2783,rate=70/100}, {item=2918,rate=20/100},{item=4357,rate=70/100}, {item=4373,rate=20/100}, {item=4389,rate=70/100}, {item=4405,rate=20/100},{item=8096,rate=70/100}, {item=8242,rate=20/100},{item=6501,rate=70/100}, {item=8210,rate=20/100},{item=8032,rate=20/100},{item=8033,rate=20/100}},{item=8034,rate=20/100}},{item=8035,rate=20/100}}, MakeCount=5, AddJf = true, Testament = true },
+  { zone=51, NpcId=2823, ItemList={ {item=2919,rate=60/100}, {item=4358,rate=30/100},{item=4374,rate=20/100},{item=4406,rate=20/100},{item=8097,rate=20/100}}, MakeCount=1, AddJf = true, Testament = true },
+  { zone=94, NpcId=2903, ItemList={ {item=5324,rate=70/100}, {item=5331,rate=20/100},{item=3474,rate=20/100},{item=3477,rate=20/100} }, MakeCount=1, AddJf = true, Testament = true },
+ 
+  { zone=96, NpcId=2823, ItemList={ {item=2919,rate=60/100}, {item=4358,rate=30/100},{item=4374,rate=20/100},{item=4406,rate=20/100},{item=8097,rate=20/100}}, MakeCount=2, AddJf = true, Testament = true },
+  { zone=43, NpcId=2905, ItemList={ {item=5324,rate=65/100}, {item=5330,rate=25/100},{item=3475,rate=20/100} }, MakeCount=1, AddJf = true, Testament = true },
+  { zone=50, NpcId=2903, ItemList={ {item=5324,rate=70/100}, {item=5331,rate=20/100},{item=3476,rate=20/100},{item=3477,rate=20/100} }, MakeCount=1, AddJf = true, Testament = true },
+  { zone=53, NpcId=2904, ItemList={ {item=5324,rate=60/100}, {item=5329,rate=30/100},{item=8108,rate=20/100},{item=3474,rate=20/100} }, MakeCount=1, AddJf = true, Testament = true },
+ 
+ 
+  { zone=23, NpcId=2905, ItemList={ {item=5324,rate=60/100}, {item=5329,rate=30/100},{item=8154,rate=20/100} }, MakeCount=1, AddJf = true, Testament = true },
+  { zone=24, NpcId=2801, ItemList={ {item=2965,rate=60/100}, {item=8151,rate=30/100},{item=8153,rate=20/100},{item=3362,rate=20/100},{item=8108,rate=20/100},{item=8140,rate=20/100},{item=8919,rate=20/100},{item=6201,rate=20/100},{item=8051,rate=20/100},{item=8239,rate=20/100} }, MakeCount=3, AddJf = true, Testament = true },
+  { zone=25, NpcId=2904, ItemList={ {item=5324,rate=60/100}, {item=5329,rate=30/100},{item=8154,rate=20/100} }, MakeCount=1, AddJf = true, Testament = true },
+ 
+  { zone=46, NpcId=1604, ItemList={ {item=5324,rate=70/100}, {item=8153,rate=20/100},{item=8152,rate=20/100} }, MakeCount=1, AddJf = false, Testament = true },
+  { zone=20, NpcId=1601, ItemList={ {item=2783,rate=70/100}, {item=2918,rate=20/100},{item=4357,rate=70/100}, {item=4373,rate=20/100}, {item=4389,rate=70/100}, {item=4405,rate=20/100},{item=8096,rate=70/100}, {item=8242,rate=20/100},{item=6501,rate=70/100}, {item=8210,rate=20/100},{item=8032,rate=20/100},{item=8033,rate=20/100}},{item=8034,rate=20/100}},{item=8035,rate=20/100}}, MakeCount=5, AddJf = false, Testament = true },
+  { zone=36, NpcId=1603, ItemList={ {item=2783,rate=70/100}, {item=2918,rate=20/100},{item=4357,rate=70/100}, {item=4373,rate=20/100}, {item=4389,rate=70/100}, {item=4405,rate=20/100},{item=8096,rate=70/100}, {item=8242,rate=20/100},{item=6501,rate=70/100}, {item=8210,rate=20/100},{item=8032,rate=20/100},{item=8033,rate=20/100}},{item=8034,rate=20/100}},{item=8035,rate=20/100}}, MakeCount=5, AddJf = false, Testament = true },
+ 
+  { zone=55, NpcId=2754, ItemList={ {item=5324,rate=70/100}, {item=8154,rate=20/100},{item=8153,rate=20/100} }, MakeCount=1, AddJf = false, Testament = true },
+ 
+};
+
+
+AlreadyRunTask_Refurbish = false
+AlreadyRunTask_Remind = false
+
+function OnTimer(TimerID)
+	if TimerID == TimerID_TimerTick then
+		local mm = GetDayTime(DDT_MINUTE)
+		
+		if mm == 0 then
+			if not AlreadyRunTask_Refurbish then
+				AlreadyRunTask_Refurbish = true
+				RefurbishNpc(g_BossTeamList)
+			end
+		else
+			AlreadyRunTask_Refurbish = false
+		end
+		
+		
+		if mm == 50 then
+			if not AlreadyRunTask_Remind then
+				AlreadyRunTask_Remind = true
+				RemindRefurbishNpc()
+			end
+		else
+			AlreadyRunTask_Remind = false
+		end
+	end
+end
+
+-- npc遗言
+function NpcTestament (npchandle, attacker)
+	local r = Random(1, 6)
+	local NpcName = GetNameNPC(npchandle)
+	local UserName = GetNameUser(attacker)
+	
+	if r == 1 then
+		SendServerMessage(NpcName.."大喊：死亡只是个开始，"..UserName.." 你要为此付出代价！", 0x00ff00)
+	elseif r == 2 then
+		SendServerMessage(NpcName.."大喊: 你们面对的不仅是我" .. NpcName .. "自己，还有我所号令的军团！", 0x00ff00)
+	elseif r == 3 then
+		SendServerMessage(NpcName.."大喊: 我们……好像……失败了呢……", 0x00ff00)
+	elseif r == 4 then
+		SendServerMessage(NpcName.."大喊: 也许，该是我落幕的时候了", 0x00ff00)
+	elseif r == 5 then
+		SendServerMessage(NpcName.."大喊: 杀了我一个，还有后来人", 0x00ff00)
+	elseif r == 6 then
+		SendServerMessage(UserName.."一脚踩在"..NpcName.."的尸体上,不禁感叹道: 我身在江湖,江湖里却没有我的传说。", 0x00ff00)
+	end
+end
+
+function OnDeadNPC(npchandle, attacker)
+	if attacker == nil or attacker == 0 or attacker == -1 then
+		return
+	end
+	local npcid = GetCodeNPC(npchandle)
+	local zone = GetZoneNPC(npchandle)
+	local k,v
+
+	for k, v in pairs(g_ItemList) do
+		if v.zone == nil or v.zone == zone then
+			if v.NpcId == nil or v.NpcId == npcid then
+				local item_list = RandomMakerList(v.ItemList, "rate", v.MakeCount)
+				CreateItemList(item_list, npchandle, attacker, "item")
+				if v.AddJf then
+					DoUserAddJF(attacker, zone)
+				end
+				if v.Testament then
+					NpcTestament(npchandle, attacker)
+				end
+			end
+		end
+	end
+	
+end
+----------------------------
+-- 以下代码来源于旧脚本 --
+----------------------------
+function OnCheckPickItem(userhandle, itemhandle)--拾取道具后
+	local item = {5325}
+	local k,v
+	for k,v in pairs(item) do
+		if GetBiteID(itemhandle) == v then
+			LogOff(userhandle)
+		end
+	end
+end
+
+--===================================================================================================
+--开始读入玩家好友列表处理
+function DoUserAddJF(hAttacker,zone)
+	DebugMessage("#DoUserAddJF")
+	local friendList = GetUserFriendList(GetChrKey(hAttacker))--玩家好友列表
+	local UserhandleList = {}
+	local FriendCount = 1
+	local k,v
+	
+	--检查地图玩家，可能存在的好友
+	local userhandle = 0
+	while 1 do 
+		userhandle = GetNextZoneUser(userhandle, zone)
+		if userhandle == 0 then 
+			break;
+		end
+
+		for k, v in pairs(friendList) do
+			if GetNameUser(userhandle) == v then
+				FriendCount = FriendCount + 1
+				table.insert(UserhandleList,userhandle)
+			end
+		end
+	end
+	table.insert(UserhandleList,hAttacker)--添加玩家本人
+	
+	--判断好友人数并加积分
+	local Rate = 0
+	if FriendCount >= 10 then
+		Rate = 9
+	elseif FriendCount >= 5 and FriendCount < 10 then
+		Rate = 6
+	else
+		Rate = 3
+	end	
+	
+	for k,v in pairs(UserhandleList) do
+		local UserId = GetAccountNameUser(v) --玩家帐号
+		local HotJF = GetUserHotJF(UserId) + Rate
+		SetUserHotJF(UserId,HotJF)
+		UserTalk(v, "斩杀BOSS成功!增加"..Rate.."屠魔积分!您累计屠BB积分为"..GetUserHotJF(UserId).."分!")
+	end
+
+end
+--好友列表处理结束
+
+
